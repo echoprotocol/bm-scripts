@@ -51,6 +51,8 @@ class connect_type(Enum):
     circular = 2
     all_to_all = 3
 
+client = docker.from_env()
+
 class deployer:
     def __init__(self, echo_bin="", pumba_bin="", node_count = 2, image = "",\
                  conn_type = connect_type.all_to_all):
@@ -73,7 +75,6 @@ class deployer:
         self.conn_type = conn_type
 
         self.set_node_names()
-        self.client = docker.from_env()
         self.stop_containers() # stop before start if not stopped in previous run
         self.start_contrainers()
         self.set_node_addresses()
@@ -89,7 +90,7 @@ class deployer:
 
     def set_node_addresses(self):
         for name in self.node_names:
-            container = self.client.containers.get(name)
+            container = client.containers.get(name)
             self.addresses.append(container.attrs['NetworkSettings']['IPAddress'])
 
     def set_seed_node_args(self):
@@ -124,13 +125,13 @@ class deployer:
     def set_launch_args(self):
         base = ""
         if (self.conn_type == connect_type.all_to_all):
-            base = "./echo_node --data-dir={datadir}/data/{dnum} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand"
+            base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand"
         else:
-            base = "./echo_node --data-dir={datadir}/data/{dnum} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand --config-seeds-only"
+            base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand --config-seeds-only"
         for i in range(self.node_count):
             rpc="--rpc-endpoint={}:{}".format(self.addresses[i], self.rpc_port)
             p2p="--p2p-endpoint={}:{} {}".format(self.addresses[i], self.port, self.seed_node_args[i])
-            self.launch_strs.append(base.format(datadir=self.echo_data_dir, dnum=i, p2p=p2p, rpc=rpc, acc_infos=self.account_info_args[i]))
+            self.launch_strs.append(base.format(datadir=self.echo_data_dir, dir=self.node_names[i], dnum=i, p2p=p2p, rpc=rpc, acc_infos=self.account_info_args[i]))
 
     def form_serial_connection(self):
         self.seed_node_args.append("")
@@ -153,7 +154,7 @@ class deployer:
 
     def copy_to(self, dst, *args):
         name, dst = dst.split(':')
-        container = self.client.containers.get(name)
+        container = client.containers.get(name)
         for src in args:
             with simple_tar(src) as tar_file:
                 container.put_archive(os.path.dirname(dst), tar_file)
@@ -164,11 +165,11 @@ class deployer:
             self.copy_to("{}:/echo_node".format(name), self.echo_bin)
 
     def start_nodes(self):
-        container = self.client.containers.get(self.node_names[0])
+        container = client.containers.get(self.node_names[0])
         cmd = "/bin/sh -c '{}'".format(self.launch_strs[0])
         container.exec_run(cmd, detach=True)
         for i in range(1, self.node_count):
-            container = self.client.containers.get(self.node_names[i])
+            container = client.containers.get(self.node_names[i])
             cmd = "/bin/sh -c '{}'".format(self.launch_strs[i])
             while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(self.addresses[i-1])):
                 time.sleep(1)
@@ -176,13 +177,13 @@ class deployer:
 
     def start_contrainers(self):
         for name in self.node_names:
-            container = self.client.containers.run(self.image,\
+            container = client.containers.run(self.image,\
                 detach=True,name=name,remove=True,tty=True)
 
     def stop_containers(self):
         for name in self.node_names:
             try:
-                container = self.client.containers.get(name)
+                container = client.containers.get(name)
                 container.stop()
             except:
                 pass
