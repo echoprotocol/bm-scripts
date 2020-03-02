@@ -4,7 +4,7 @@ import os
 import time
 import psutil
 import threading
-from deployer import client 
+from .deployer import client 
 
 class utillization_checker:
     def __init__(self, addresses = [], names = []):

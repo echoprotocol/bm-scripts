@@ -8,6 +8,10 @@ import signal
 import time
 import tempfile
 import subprocess
+import sys
+
+sys.path.append('..')
+from utils.files_path import RESOURCES_DIR
 
 COMMITTEE_COUNT=20
 PRIVATE_KEYS = ["5KBPWjxKz8Ym7CLatFMa5XtfbvTzEt7vMugkRNk7go9dBQfJLYt",
@@ -161,7 +165,7 @@ class deployer:
 
     def copy_data(self):
         for name in self.node_names:
-            self.copy_to("{}:/".format(name), "../resources/access.json", "../resources/private_genesis.json")
+            self.copy_to("{}:/".format(name), RESOURCES_DIR+"/access.json", RESOURCES_DIR+"/private_genesis.json")
             self.copy_to("{}:/echo_node".format(name), self.echo_bin)
 
     def start_nodes(self):

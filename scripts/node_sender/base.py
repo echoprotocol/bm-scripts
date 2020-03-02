@@ -3,14 +3,14 @@ import os.path
 
 from echopy import Echo
 
-from echo_operation import EchoOperation
-from receiver import Receiver
-from type_validation import TypeValidator
+from .echo_operation import EchoOperation
+from .receiver import Receiver
+from .type_validation import TypeValidator
 from websocket import create_connection
 
-from files_path import ECHO_CONTRACTS, ETHEREUM_CONTRACTS
+from utils.files_path import ECHO_CONTRACTS, ETHEREUM_CONTRACTS
 
-DEBUG = False
+DEBUG = True
 
 class Base:
     def __init__(self, node_url):

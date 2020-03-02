@@ -5,9 +5,9 @@ from calendar import timegm
 
 from random import randrange
 
-from base import Base
+from .base import Base
 
-from files_path import NATHAN_PK
+from utils.files_path import NATHAN_PK
 
 initial_balance = 1000000000000000
 

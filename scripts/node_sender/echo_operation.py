@@ -2,9 +2,10 @@ import json
 
 from copy import deepcopy
 
-from type_validation import TypeValidator
-from operations_ids import OperationIds
-from files_path import ECHO_OPERATIONS
+from .type_validation import TypeValidator
+from .operations_ids import OperationIds
+
+from utils.files_path import ECHO_OPERATIONS
 
 class EchoOperation:
     def __init__(self):
