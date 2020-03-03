@@ -1,6 +1,13 @@
 import json
+import time
 
+from calendar import timegm
+from codecs import decode
 from copy import deepcopy
+from datetime import datetime, timezone
+from math import ceil
+
+from echopy.transaction import TransactionType
 
 from .type_validation import TypeValidator
 from .operations_ids import OperationIds
@@ -11,7 +18,6 @@ class EchoOperation:
     def __init__(self):
         self.operation_ids = OperationIds()
         self.type_validator = TypeValidator()
-        self.nnn = 0
 
 
     @staticmethod
@@ -80,7 +86,48 @@ class EchoOperation:
             return [operation_id, contract_call_props, registrar]
         return [operation_id, contract_call_props, signer]
 
-    def get_sign_transaction(self, echo, list_operations, expiration = None):
+    def sign(self, tx, chain_id, dynamic_global_chain_data):
+        tx._finalized = True
+
+        tx._ref_block_num = dynamic_global_chain_data['head_block_number'] & 0xffff
+
+        def bytes_to_int(bytes):
+            result = 0
+            for b in bytes:
+                result = result * 256 + int(b)
+            return result
+
+        little_endian = bytearray(decode(dynamic_global_chain_data['head_block_id'], 'hex')[4:8])
+        little_endian.reverse()
+        tx._ref_block_prefix = bytes_to_int(little_endian)
+
+        if tx.expiration is None:
+
+            def seconds_to_iso(sec):
+                iso_result = datetime.fromtimestamp(sec, timezone.utc).replace(microsecond=0).isoformat()
+                return iso_result[:iso_result.rfind('+')]
+
+            def iso_to_seconds(iso):
+                timeformat = "%Y-%m-%dT%H:%M:%S%Z"
+                return ceil(timegm(time.strptime((iso + "UTC"), timeformat)))
+
+            now_iso = seconds_to_iso(datetime.now(timezone.utc).timestamp())
+            now_seconds = iso_to_seconds(now_iso)
+            tx.expiration = seconds_to_iso(now_seconds + 300)
+
+        _transaction = TransactionType(
+            ref_block_num = tx.ref_block_num,
+            ref_block_prefix = tx.ref_block_prefix,
+            expiration = tx.expiration,
+            operations = tx.operations,
+            extensions = []
+        )
+        transaction_buffer = bytes(_transaction)
+        chain_buffer = bytes.fromhex(chain_id)
+        tx._signatures = list(map(lambda signer: tx._crypto.sign_message(chain_buffer + transaction_buffer,
+                                    signer).hex(), tx._signers))
+
+    def get_sign_transaction(self, echo, list_operations, chain_id, dynamic_global_chain_data, expiration = None):
         tx = echo.create_transaction()
         if len(list_operations) > 1:
             list_operations = [item for sublist in list_operations for item in sublist]
@@ -90,12 +137,8 @@ class EchoOperation:
             tx.add_signer(operation[2])
         if expiration:
             tx.expiration = expiration
-        tx.sign()
+        self.sign(tx, chain_id, dynamic_global_chain_data)
         return tx
-
-    def check(self):
-        self.nnn += 1
-        print(self.nnn)
 
     def broadcast(self, tx, with_callback = True):
         if with_callback == True:

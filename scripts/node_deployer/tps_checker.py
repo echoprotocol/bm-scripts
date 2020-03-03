@@ -19,9 +19,8 @@ class tps_checker:
         self.sent_tx_number = sent_tx_number
         self.start_time = ""
         self.end_time = ""
-        self.ws = create_connection(url);
+        self.ws = create_connection(url)
         self.login_api()
-        self.collect_tps()
         
     def login_api(self):
         self.ws.send(login_req)
@@ -34,22 +33,25 @@ class tps_checker:
         self.ws.recv()
 
     def collect_tps(self):
-        responce = ""
+        response = ""
         while self.collected_tx_number != self.sent_tx_number:
-            response = json.loads(self.ws.recv())
-            block_id = response['params'][1][0][0]['head_block_id']
-            block_num = response['params'][1][0][0]['head_block_number']
-            self.ws.send(tx_count_req.format(block_id=block_id))
-            response_tx = json.loads(self.ws.recv())
-            self.collected_tx_number =  self.collected_tx_number + int(response_tx['result'])
-
-            if self.collected_tx_number != 0 and self.start_time == "":
-                self.start_time = response['params'][1][0][0]['time']
+            receive = self.ws.recv()
+            if "method" in receive:
+                response = json.loads(receive)
+                block_id = response['params'][1][0][0]['head_block_id']
+                self.ws.send(tx_count_req.format(block_id=block_id))
+            else:
+                response_tx = json.loads(receive)
+                self.collected_tx_number =  self.collected_tx_number + int(response_tx['result'])
+                print("self.collected_tx_number", self.collected_tx_number)
+                if self.collected_tx_number != 0 and self.start_time == "":
+                    self.start_time = response['params'][1][0][0]['time']
 
         self.end_time = response['params'][1][0][0]['time']
         start = datetime.strptime(self.start_time, '%Y-%m-%dT%H:%M:%S')
         end = datetime.strptime(self.end_time, '%Y-%m-%dT%H:%M:%S')
-        self.tps = self.collected_tx_number / (start - end).seconds
+        self.tps = self.collected_tx_number / ((end - start).seconds)
+        print("TPS: ", self.tps)
 
     def get_tps(self):
         return self.tps
