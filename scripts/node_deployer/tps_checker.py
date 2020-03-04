@@ -43,7 +43,7 @@ class tps_checker:
             else:
                 response_tx = json.loads(receive)
                 self.collected_tx_number =  self.collected_tx_number + int(response_tx['result'])
-                print("self.collected_tx_number", self.collected_tx_number)
+                print("Collected txs -", self.collected_tx_number)
                 if self.collected_tx_number != 0 and self.start_time == "":
                     self.start_time = response['params'][1][0][0]['time']
 
@@ -51,7 +51,6 @@ class tps_checker:
         start = datetime.strptime(self.start_time, '%Y-%m-%dT%H:%M:%S')
         end = datetime.strptime(self.end_time, '%Y-%m-%dT%H:%M:%S')
         self.tps = self.collected_tx_number / ((end - start).seconds)
-        print("TPS: ", self.tps)
 
     def get_tps(self):
         return self.tps
@@ -59,9 +58,11 @@ class tps_checker:
     def run_check(self):
         self.t = threading.Thread(target=self.collect_tps)
         self.t.start()
+        print("Started tps collector - Done")
 
     def wait_check(self):
         self.t.join()
+        print("tps -", self.tps)
 
 #def test():
 #    tc = tps_checker("172.17.0.2", 10)

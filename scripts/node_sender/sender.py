@@ -40,7 +40,8 @@ class Sender(Base):
         self.echo_ops.broadcast(self.echo_ops.get_sign_transaction(
             echo = self.echo, list_operations = collected_operation, chain_id = self.chain_id, dynamic_global_chain_data = self.dynamic_global_chain_data),
             with_callback = False)
-        print("FINISH INIT BALANCE")
+
+        print("Import balance - Done")
 
     def send_transaction_list(self, transaction_list):
         sign_transaction_list = []
@@ -55,12 +56,11 @@ class Sender(Base):
             time_increment += 1
 
         k = 0
-        print("START SEND TRANSACTION")
         for tr in sign_transaction_list:
             k += 1
             self.echo_ops.broadcast(tr)
             if (k % 1000 == 0):
-                print("Send ", k, " transactions!")
+                print("Sent ", k, " transactions")
 
     def transfer(self, transaction_count = 1):
         transfer_amount = 1

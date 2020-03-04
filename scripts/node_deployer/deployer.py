@@ -209,6 +209,12 @@ class deployer:
         self.pumba_proc = subprocess.Popen(cmd.format(pumba_bin=self.pumba_bin,
             time=time, jitter=jitter, containers = nodes), shell=True, preexec_fn=os.setsid)
 
+    def wait_nodes(self):
+        for addr in self.addresses:
+            while self.node_is_not_started(addr):
+                time.sleep(1)
+        print("Node deploying - Done")
+
     def kill_pumba(self):
         os.killpg(os.getpgid(self.pumba_proc.pid), signal.SIGTERM)
 

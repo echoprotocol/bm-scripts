@@ -58,13 +58,14 @@ class utillization_checker:
         self.is_running = True
         self.t = threading.Thread(target=self.collect_stats)
         self.t.start()
+        print("Started utilization checker - Done")
 
     def stop_check(self):
         self.is_running = False
         self.t.join()
         for file in self.files:
             file.close()
-        print("Results: ", os.getpid())
+        print("Utilization checker results:", os.getpid())
 
 #def test():
 #    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
