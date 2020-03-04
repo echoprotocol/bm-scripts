@@ -19,7 +19,7 @@ class Sender(Base):
         self.nathan_priv_key = NATHAN_PRIV
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
-        self.ethereum_contract = self.get_byte_code("erc20", "code", ethereum_contract = True)
+        self.ethereum_contract = self.get_byte_code("fib", "code", ethereum_contract = True)
 
     @staticmethod
     def seconds_to_iso(sec):
