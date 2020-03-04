@@ -13,7 +13,6 @@ class simple_test:
         self.uc = utillization_checker(d.get_addresses(), d.get_node_names())
         self.s = Sender("ws://172.17.0.2:8090/ws")
         self.s.import_balance_to_nathan()
-        sleep(20)
 
     def run_test(self):
         self.uc.run_check()
@@ -24,7 +23,7 @@ class simple_test:
         self.uc.stop_check()
 
 def test():
-    test = simple_test(10, "/home/vadim/PixelPlex/echo/build/bin/echo_node", "ubuntu_delay", 50000)
+    test = simple_test(10, "/home/vadim/PixelPlex/echo/build/bin/echo_node", "ubuntu_delay", 10000)
     test.run_test()
 
 test()

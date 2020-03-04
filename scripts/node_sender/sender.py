@@ -38,7 +38,8 @@ class Sender(Base):
                                                                 initial_balance, self.nathan_priv_key)
         collected_operation = self.collect_operations(operation, self.database_api_identifier)
         self.echo_ops.broadcast(self.echo_ops.get_sign_transaction(
-            echo = self.echo, list_operations = collected_operation, chain_id = self.chain_id, dynamic_global_chain_data = self.dynamic_global_chain_data))
+            echo = self.echo, list_operations = collected_operation, chain_id = self.chain_id, dynamic_global_chain_data = self.dynamic_global_chain_data),
+            with_callback = False)
         print("FINISH INIT BALANCE")
 
     def send_transaction_list(self, transaction_list):
