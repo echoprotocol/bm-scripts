@@ -14,12 +14,12 @@ class simple_test:
         self.s.import_balance_to_nathan()
 
     def run_test(self):
-        # self.s.create_contract(with_response = True)
+        self.s.create_contract(with_response = True)
         uc = utillization_checker(self.d.get_addresses(), self.d.get_node_names())
         uc.run_check()
         tc = tps_checker("172.17.0.2", self.tx_count)
         tc.run_check()
-        self.s.create_contract(transaction_count = self.tx_count)
+        self.s.call_contract(transaction_count = self.tx_count)
         tc.wait_check()
         uc.stop_check()
 

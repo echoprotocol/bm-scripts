@@ -18,7 +18,7 @@ class Sender(Base):
         self.echo_nathan_id = "1.2.25"
         self.nathan_priv_key = NATHAN_PRIV
         self.echo_acc_2 = "1.2.6"
-        self.x86_64_contract = self.get_byte_code("piggy", "code", ethereum_contract = False)
+        self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
         self.ethereum_contract = self.get_byte_code("erc20", "code", ethereum_contract = True)
 
     @staticmethod
@@ -103,7 +103,7 @@ class Sender(Base):
             contract_id = "1.11.0"
 
         if x86_64_contract is True:
-            code = self.get_byte_code("piggy", "greet()")
+            code = self.get_byte_code("fib", "fib(1)")
         else:
             code = self.get_byte_code("piggy", "greet()")
 
