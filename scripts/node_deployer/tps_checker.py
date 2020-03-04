@@ -50,7 +50,11 @@ class tps_checker:
         self.end_time = response['params'][1][0][0]['time']
         start = datetime.strptime(self.start_time, '%Y-%m-%dT%H:%M:%S')
         end = datetime.strptime(self.end_time, '%Y-%m-%dT%H:%M:%S')
-        self.tps = self.collected_tx_number / ((end - start).seconds)
+        diff = (end - start).seconds
+        if diff == 0:
+            self.tps = self.collected_tx_number
+        else:
+            self.tps = self.collected_tx_number / ((end - start).seconds)
 
     def get_tps(self):
         return self.tps

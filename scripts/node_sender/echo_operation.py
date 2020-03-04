@@ -140,9 +140,9 @@ class EchoOperation:
         self.sign(tx, chain_id, dynamic_global_chain_data)
         return tx
 
-    def broadcast(self, tx, with_callback = True):
-        if with_callback == True:
-            broadcast_result = tx.broadcast("1")
-        else:
+    def broadcast(self, tx, with_response = False):
+        if with_response == True:
             broadcast_result = tx.broadcast()
+        else:
+            broadcast_result = tx.broadcast("1")
         return broadcast_result

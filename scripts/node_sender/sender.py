@@ -39,11 +39,11 @@ class Sender(Base):
         collected_operation = self.collect_operations(operation, self.database_api_identifier)
         self.echo_ops.broadcast(self.echo_ops.get_sign_transaction(
             echo = self.echo, list_operations = collected_operation, chain_id = self.chain_id, dynamic_global_chain_data = self.dynamic_global_chain_data),
-            with_callback = False)
+            with_response = True)
 
         print("Import balance - Done")
 
-    def send_transaction_list(self, transaction_list):
+    def send_transaction_list(self, transaction_list, with_response = False):
         sign_transaction_list = []
 
         time_increment = 300
@@ -58,7 +58,7 @@ class Sender(Base):
         k = 0
         for tr in sign_transaction_list:
             k += 1
-            self.echo_ops.broadcast(tr)
+            self.echo_ops.broadcast(tr, with_response = with_response)
             if (k % 1000 == 0):
                 print("Sent ", k, " transactions")
 
@@ -79,9 +79,11 @@ class Sender(Base):
         self.send_transaction_list(transaction_list)
 
 
-    def create_contract(self, code = None, value = 0, transaction_count = 1):
-        if code is None:
+    def create_contract(self, x86_64_contract = True, value = 0, transaction_count = 1, with_response = False):
+        if x86_64_contract is True:
             code = self.x86_64_contract
+        else:
+            code = self.ethereum_contract
 
         transaction_list = []
 
@@ -94,27 +96,21 @@ class Sender(Base):
             transaction_list.append(collected_operation)
             n += 1
 
-        self.send_transaction_list(transaction_list)
+        self.send_transaction_list(transaction_list, with_response = with_response)
 
-    def call_contract(self, code = None, value = 0, contract_id = None, contract_code = None, transaction_count = 1):
-        transaction_list = []
-
+    def call_contract(self, contract_id = None, x86_64_contract = True, value = 0, transaction_count = 1):
         if contract_id is None:
-            if contract_code is None:
-                contract_code = self.x86_64_contract
-            operation = self.echo_ops.get_contract_create_operation(echo = self.echo, registrar = self.echo_nathan_id,
-                                                                    bytecode = contract_code, value_amount = value,
-                                                                    value_asset_id = self.echo_asset, signer = self.nathan_priv_key)
-            collected_operation = self.collect_operations(operation, self.database_api_identifier)
-            transaction_list.append(collected_operation)
-
             contract_id = "1.11.0"
 
-        if code is None:
+        if x86_64_contract is True:
+            code = self.get_byte_code("piggy", "greet()")
+        else:
             code = self.get_byte_code("piggy", "greet()")
 
+        transaction_list = []
+
         n = 0
-        while n != (transaction_count - 1):
+        while n != (transaction_count):
             operation = self.echo_ops.get_contract_call_operation(echo = self.echo, registrar = self.echo_nathan_id,
                                                               bytecode = code, callee = contract_id, signer = self.nathan_priv_key)
             collected_operation = self.collect_operations(operation, self.database_api_identifier)

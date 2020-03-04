@@ -213,6 +213,7 @@ class deployer:
         for addr in self.addresses:
             while self.node_is_not_started(addr):
                 time.sleep(1)
+        time.sleep(10) # unexplored behavior: without sleep node can crash during running
         print("Node deploying - Done")
 
     def kill_pumba(self):
