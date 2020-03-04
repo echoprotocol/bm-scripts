@@ -7,7 +7,7 @@ from random import randrange
 
 from .base import Base
 
-from node_deployer.deployer import NATHAN_PRIV
+from ..node_deployer.deployer import NATHAN_PRIV
 
 initial_balance = 1000000000000000
 

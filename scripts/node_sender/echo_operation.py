@@ -12,7 +12,7 @@ from echopy.transaction import TransactionType
 from .type_validation import TypeValidator
 from .operations_ids import OperationIds
 
-from utils.files_path import ECHO_OPERATIONS
+from ..utils.files_path import ECHO_OPERATIONS
 
 class EchoOperation:
     def __init__(self):

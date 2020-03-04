@@ -8,7 +8,7 @@ from .receiver import Receiver
 from .type_validation import TypeValidator
 from websocket import create_connection
 
-from utils.files_path import ECHO_CONTRACTS, ETHEREUM_CONTRACTS
+from ..utils.files_path import ECHO_CONTRACTS, ETHEREUM_CONTRACTS
 
 DEBUG = False
 

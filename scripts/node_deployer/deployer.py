@@ -10,8 +10,7 @@ import tempfile
 import subprocess
 import sys
 
-sys.path.append('..')
-from utils.files_path import RESOURCES_DIR
+from ..utils.files_path import RESOURCES_DIR
 
 COMMITTEE_COUNT=20
 PRIVATE_KEYS = ["5KBPWjxKz8Ym7CLatFMa5XtfbvTzEt7vMugkRNk7go9dBQfJLYt",

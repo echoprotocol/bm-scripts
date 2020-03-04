@@ -1,9 +1,9 @@
 from time import sleep
 
-from node_deployer.deployer import deployer
-from node_deployer.utilization_checker import utillization_checker
-from node_deployer.tps_checker import tps_checker
-from node_sender.sender import Sender
+from .node_deployer.deployer import deployer
+from .node_deployer.utilization_checker import utillization_checker
+from .node_deployer.tps_checker import tps_checker
+from .node_sender.sender import Sender
 
 class simple_test:
     def __init__(self, node_count, echo_bin, image, tx_count):
@@ -21,10 +21,4 @@ class simple_test:
         tc.run_check()
         self.s.call_contract(transaction_count = self.tx_count)
         tc.wait_check()
-        uc.stop_check()
-
-def test():
-    test = simple_test(10, "/home/vadim/PixelPlex/echo/build/bin/echo_node", "ubuntu_delay", 1000)
-    test.run_test()
-
-test()
+        self.uc.stop_check()
