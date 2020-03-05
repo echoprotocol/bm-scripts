@@ -103,9 +103,9 @@ class Sender(Base):
             contract_id = "1.11.0"
 
         if x86_64_contract is True:
-            code = self.get_byte_code("fib", "fib(1)")
+            code = self.get_byte_code("fib", "fib(1)", ethereum_contract = False)
         else:
-            code = self.get_byte_code("piggy", "greet()")
+            code = self.get_byte_code("fib", "fib(1)", ethereum_contract = True)
 
         transaction_list = []
 
