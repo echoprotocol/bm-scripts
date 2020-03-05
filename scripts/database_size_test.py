@@ -17,7 +17,7 @@ class database_size_test:
         self.s.create_contract(x86_64_contract = True, with_response = True)
         self.s.create_contract(x86_64_contract = False, with_response = True)
         cycles = 10
-        uc = utillization_checker(self.d.get_addresses()[1], ["echonode1"])
+        uc = utillization_checker([self.d.get_addresses()[1]], ["echonode1"])
         uc.run_check()
         tc = tps_checker(self.d.get_addresses()[0], self.tx_count * cycles * 5)
         tc.run_check()

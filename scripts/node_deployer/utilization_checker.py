@@ -55,8 +55,8 @@ class utillization_checker:
                 x86size = bytes.decode('utf-8').split('\t')[0]
                 bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/evm").output
                 evmsize = bytes.decode('utf-8').split('\t')[0]
-                print(rssize, vmsize, dbsize, x86size, evmsize)
                 self.files[i].write("%d  %d  %s  %s  %s\n" % (rssize, vmsize, dbsize, x86size, evmsize))
+                self.files[i].flush()
             time.sleep(20)
 
     def run_check(self):
