@@ -20,6 +20,7 @@ class Sender(Base):
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
         self.ethereum_contract = self.get_byte_code("fib", "code", ethereum_contract = True)
+        self.call_id = 0
 
     @staticmethod
     def seconds_to_iso(sec):
@@ -50,10 +51,10 @@ class Sender(Base):
         for tr in transaction_list:
             now_iso = self.seconds_to_iso(datetime.now(timezone.utc).timestamp())
             now_seconds = self.iso_to_seconds(now_iso)
-            expiration_time = self.seconds_to_iso(now_seconds + time_increment)
+            expiration_time = self.seconds_to_iso(now_seconds + time_increment + self.call_id)
             sign_transaction_list.append(self.echo_ops.get_sign_transaction(
                 echo = self.echo, list_operations = tr, expiration = expiration_time, chain_id = self.chain_id, dynamic_global_chain_data = self.dynamic_global_chain_data))
-            time_increment += 1
+            self.call_id += 1
 
         k = 0
         for tr in sign_transaction_list:

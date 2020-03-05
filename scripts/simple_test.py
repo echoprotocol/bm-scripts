@@ -10,7 +10,7 @@ class simple_test:
         self.tx_count = tx_count
         self.d = deployer(node_count=node_count, echo_bin=echo_bin, image=image)
         self.d.wait_nodes()
-        self.s = Sender("ws://172.17.0.2:8090/ws")
+        self.s = Sender("172.17.0.2")
         self.s.import_balance_to_nathan()
 
     def run_test(self):

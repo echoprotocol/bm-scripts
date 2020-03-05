@@ -15,7 +15,7 @@ DEBUG = False
 class Base:
     def __init__(self, node_url):
         super().__init__()
-        self.node_url = node_url
+        self.node_url = "ws://{}:8090".format(node_url)
         self.echo = Echo()
         self.echo_ops = EchoOperation()
         self.ws = self.create_connection_to_echo()
