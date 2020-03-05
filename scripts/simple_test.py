@@ -1,5 +1,3 @@
-from time import sleep
-
 from .node_deployer.deployer import deployer
 from .node_deployer.utilization_checker import utillization_checker
 from .node_deployer.tps_checker import tps_checker

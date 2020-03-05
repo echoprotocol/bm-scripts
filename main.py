@@ -34,6 +34,9 @@ def run_suite(args):
     elif args.suite == "database":
        dst = database_size_test(args.node_count, args.echo_bin, args.image, args.txs_count)
        dst.run_test()
+    elif args.suite == "propagation":
+       pt = propagation_test(args.node_count, args.echo_bin, args.image, args.tx_count)
+       pt.run_test()
 
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
