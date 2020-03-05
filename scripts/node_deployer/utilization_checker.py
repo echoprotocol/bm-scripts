@@ -49,13 +49,14 @@ class utillization_checker:
                 process = psutil.Process(pid)
                 rssize = process.memory_info().rss
                 vmsize = process.memory_info().vms
+                cpu = process.cpu_percent(interval=1)
                 bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/database").output
                 dbsize = bytes.decode('utf-8').split('\t')[0]
                 bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/x86_vm").output
                 x86size = bytes.decode('utf-8').split('\t')[0]
                 bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/evm").output
                 evmsize = bytes.decode('utf-8').split('\t')[0]
-                self.files[i].write("%d  %d  %s  %s  %s\n" % (rssize, vmsize, dbsize, x86size, evmsize))
+                self.files[i].write("%d  %d  %f  %s  %s  %s\n" % (rssize, vmsize, cpu, dbsize, x86size, evmsize))
                 self.files[i].flush()
             time.sleep(20)
 
