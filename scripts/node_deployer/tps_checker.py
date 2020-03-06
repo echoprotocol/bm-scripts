@@ -5,13 +5,15 @@ from datetime import datetime
 from websocket import create_connection
 import threading
 
-login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}';
+login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}'
 database_req = '{"method": "call", "params": [1, "database", []], "id": 0}'
 subscribe_callback_req = '{"method": "set_subscribe_callback", "params": [0, false], "id": 0}'
 subscribe_dgpo_req = '{"method": "get_objects", "params": [["2.1.0"]], "id": 0}'
 tx_count_req = '{{"method": "get_block_tx_number", "params": [{block_id}], "id": 0}}'
 
 class tps_checker:
+    block_number = 0
+
     def __init__(self, addr, sent_tx_number):
         url = "ws://{}:8090".format(addr)
         self.tps = 0
@@ -32,6 +34,10 @@ class tps_checker:
         self.ws.send(subscribe_dgpo_req)
         self.ws.recv()
 
+    @staticmethod
+    def get_block_number():
+        return tps_checker.block_number
+
     def collect_tps(self):
         response = ""
         while self.collected_tx_number != self.sent_tx_number:
@@ -39,6 +45,7 @@ class tps_checker:
             if "method" in receive:
                 response = json.loads(receive)
                 block_id = response['params'][1][0][0]['head_block_id']
+                tps_checker.block_number = response['params'][1][0][0]['head_block_number']
                 self.ws.send(tx_count_req.format(block_id=block_id))
             else:
                 response_tx = json.loads(receive)

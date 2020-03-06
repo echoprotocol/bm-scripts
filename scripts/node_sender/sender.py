@@ -12,15 +12,15 @@ from ..node_deployer.deployer import NATHAN_PRIV
 initial_balance = 1000000000000000
 
 class Sender(Base):
-    def __init__(self, node_url):
+    def __init__(self, node_url, call_id = 0):
         super().__init__(node_url)
+        self.call_id = call_id
         self.echo_nathan = "nathan"
         self.echo_nathan_id = "1.2.25"
         self.nathan_priv_key = NATHAN_PRIV
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
         self.ethereum_contract = self.get_byte_code("fib", "code", ethereum_contract = True)
-        self.call_id = 0
 
     @staticmethod
     def seconds_to_iso(sec):
