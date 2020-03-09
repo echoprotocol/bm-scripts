@@ -8,6 +8,7 @@ from scripts.tps_test import tps_test
 from scripts.database_size_test import database_size_test
 from scripts.propagation_test import propagation_test
 from scripts.node_deployer.deployer import connect_type
+from scripts.load_test import load_test
 
 def set_options(parser):
     parser.add_argument('-e', '--echo_bin', action='store', dest='echo_bin',
@@ -18,6 +19,8 @@ def set_options(parser):
         type=str, help="Name of image for docker containers", default="", required=True)
     parser.add_argument('-n', '--node_count', action='store', dest='node_count',
         type=int, help="Node count for deploying", default=2)
+    parser.add_argument('-ct', '--conn_type', action='store', dest='conn_type',
+        type=str, help="Network configurations. Can be the next: all_to_all, cyclic, serial", default="all_to_all")
     parser.add_argument('-dn', '--delayed_node', dest='delayed_node', nargs='+',
         type=int, help="Number on nodes which will be run under the network delay", default=[])
     parser.add_argument('-idn', '--inverse_delayed_node', dest='inverse_delayed_node', nargs='+',
@@ -32,6 +35,8 @@ def set_options(parser):
         type=str, help="Network configurations. Can be the next: all_to_all, cyclic, serial", default="all_to_all")
     parser.add_argument('-tt', '--tx_type', dest='tx_type', action='store',
         type=str, help="Transaction type: transfer, create_evm, call_emv, create_x86, call_x86", default = "transfer")
+    parser.add_argument('-sc', '--send_cycles', dest='cycles', action='store',
+        type=int, help="Count of cycles of send", default=1)
     parser.add_argument('-cl', '--clear', action='store_true', help="Clear containers after test execution")
 
 
@@ -72,21 +77,21 @@ def create_delayed_node_lst(args):
 def select_suite(args):
     if args.suite == "tps":
        if args.pumba_bin != "":
-           t = tps_test(args.node_count, args.echo_bin, args.pumba_bin, args.image,
+            return tps_test(args.node_count, args.echo_bin, args.pumba_bin, args.image,
                args.txs_count, args.time, create_delayed_node_lst(args), get_transaction_type(args.tx_type), get_connection_type(args.conn_type))
-           return t
        else:
            raise Exception("pumba_bin argmunet should be specified!")
     elif args.suite == "database":
-       t = database_size_test(args.node_count, args.echo_bin, args.image, args.txs_count)
-       return t
+       return database_size_test(args.node_count, args.echo_bin, args.image, args.txs_count, cycles=args.cycles)
     elif args.suite == "propagation":
        if args.pumba_bin != "":
-           t = propagation_test(args.node_count, args.echo_bin,
+           return propagation_test(args.node_count, args.echo_bin,
                args.image, args.pumba_bin, args.time, create_delayed_node_lst(args))
-           return t
        else:
            raise Exception("pumba_bin argmunet should be specified!")
+    elif args.suite == "load":
+        return load_test(args.node_count, args.echo_bin, args.image, args.pumba_bin, args.time,
+            get_connection_type(args.conn_type), tx_count=args.txs_count, cycles=args.cycles)
 
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
