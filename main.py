@@ -1,10 +1,13 @@
 #!/usr/bin/python3
 
 import argparse
+import traceback
+import logging
 
-from scripts.simple_test import simple_test
+from scripts.tps_test import tps_test
 from scripts.database_size_test import database_size_test
 from scripts.propagation_test import propagation_test
+from scripts.node_deployer.deployer import connect_type
 
 def set_options(parser):
     parser.add_argument('-e', '--echo_bin', action='store', dest='echo_bin',
@@ -20,11 +23,37 @@ def set_options(parser):
     parser.add_argument('-idn', '--inverse_delayed_node', dest='inverse_delayed_node', nargs='+',
         type=int, help="Number on nodes which will not be run under the network delay, all other nodes will be", default=[])
     parser.add_argument('-t', '--time', dest='time', action='store', 
-        type=int, help="Delay on network interface in ms", default=20)
+        type=int, help="Delay on network interface in ms", default=0)
     parser.add_argument('-s', '--suite', dest='suite', action='store',
-        type=str, help="Name of test suite. Can be the next: simple, database[will be added]... ", required=True)
+        type=str, help="Name of test suite. Can be the next: tps, database[will be added]... ", required=True)
     parser.add_argument('-txs', '--txs_count', dest='txs_count', action='store',
         type=int, help="Number of transactions", default=10000)
+    parser.add_argument('-ct', '--conn_type', action='store', dest='conn_type',
+        type=str, help="Network configurations. Can be the next: all_to_all, cyclic, serial", default="all_to_all")
+    parser.add_argument('-tt', '--tx_type', dest='tx_type', action='store',
+        type=str, help="Transaction type: transfer, create_evm, call_emv, create_x86, call_x86", default = "transfer")
+    parser.add_argument('-cl', '--clear', action='store_true', help="Clear containers after test execution")
+
+
+def get_connection_type(type):
+    conn_type = connect_type.all_to_all
+    if (type == "serial"):
+        conn_type = connect_type.serial
+    elif (type == "cyclic"):
+        conn_type = connect_type.circular
+    return conn_type
+
+def get_transaction_type(type):
+    tx_type = 0
+    if (type == "create_evm"):
+        tx_type = 1
+    elif (type == "call_evm"):
+        tx_type = 2
+    elif (type == "create_x86"):
+        tx_type = 3
+    elif (type == "call_x86"):
+        tx_type = 4
+    return tx_type
 
 def create_delayed_node_lst(args):
     lst = []
@@ -40,26 +69,42 @@ def create_delayed_node_lst(args):
     else:
         return lst
 
-def run_suite(args):
-    if args.suite == "simple":
-       st = simple_test(args.node_count, args.echo_bin, args.image, args.txs_count)
-       st.run_test()
+def select_suite(args):
+    if args.suite == "tps":
+       if args.pumba_bin != "":
+           t = tps_test(args.node_count, args.echo_bin, args.pumba_bin, args.image,
+               args.txs_count, args.time, create_delayed_node_lst(args), get_transaction_type(args.tx_type), get_connection_type(args.conn_type))
+           return t
+       else:
+           raise Exception("pumba_bin argmunet should be specified!")
     elif args.suite == "database":
-       dst = database_size_test(args.node_count, args.echo_bin, args.image, args.txs_count)
-       dst.run_test()
+       t = database_size_test(args.node_count, args.echo_bin, args.image, args.txs_count)
+       return t
     elif args.suite == "propagation":
        if args.pumba_bin != "":
-           pt = propagation_test(args.node_count, args.echo_bin,
+           t = propagation_test(args.node_count, args.echo_bin,
                args.image, args.pumba_bin, args.time, create_delayed_node_lst(args))
-           pt.run_test()
+           return t
        else:
-           print("pumba_bin argmunet should be specified!")
+           raise Exception("pumba_bin argmunet should be specified!")
 
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     set_options(parser)
     args = parser.parse_args()
-    run_suite(args)
+    test = None
+    try:
+        test = select_suite(args)
+        test.run_test()
+        if args.clear == True:
+            test.d.stop_containers()
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        print(type(test))
+        if test is not None:
+            test.d.kill_pumba()
+        if args.clear == True:
+            test.d.stop_containers()
     
 if __name__ == "__main__":
     main()
