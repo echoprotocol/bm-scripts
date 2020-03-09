@@ -119,3 +119,23 @@ class Sender(Base):
             n += 1
 
         self.send_transaction_list(transaction_list)
+
+    def create_transfer_transaction(self):
+        transfer_amount = 1
+        transaction_list = []
+        transfer_operation = self.echo_ops.get_transfer_operation(echo = self.echo, from_account_id = self.echo_nathan_id,
+            amount = transfer_amount, to_account_id = self.echo_acc_2, signer = self.nathan_priv_key)
+        collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier)
+        transaction_list.append(collected_operation)
+
+        sign_transaction_list = []
+        time_increment = 300
+        for tr in transaction_list:
+            now_iso = self.seconds_to_iso(datetime.now(timezone.utc).timestamp())
+            now_seconds = self.iso_to_seconds(now_iso)
+            expiration_time = self.seconds_to_iso(now_seconds + time_increment + self.call_id)
+            sign_transaction_list.append(self.echo_ops.get_sign_transaction(
+                echo = self.echo, list_operations = tr, expiration = expiration_time, chain_id = self.chain_id, dynamic_global_chain_data = self.dynamic_global_chain_data))
+            self.call_id += 1
+
+        return sign_transaction_list[0]
