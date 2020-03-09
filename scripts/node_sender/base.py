@@ -3,26 +3,31 @@ import os.path
 
 from echopy import Echo
 
-from echo_operation import EchoOperation
-from receiver import Receiver
-from type_validation import TypeValidator
+from .echo_operation import EchoOperation
+from .receiver import Receiver
+from .type_validation import TypeValidator
 from websocket import create_connection
 
-from files_path import ECHO_CONTRACTS, ETHEREUM_CONTRACTS
+from ..utils.files_path import ECHO_CONTRACTS, ETHEREUM_CONTRACTS
 
 DEBUG = False
 
 class Base:
     def __init__(self, node_url):
         super().__init__()
-        self.node_url = node_url
+        self.node_url = "ws://{}:8090".format(node_url)
         self.echo = Echo()
         self.echo_ops = EchoOperation()
+        self.ws = self.create_connection_to_echo()
+        self.database_api_identifier = self.get_identifier("database")
+        self.connect_to_echopy_lib()
         self.__call_id = 0
         self.echo_asset = "1.3.0"
-        self.ws = self.create_connection_to_echo()
         self.receiver = Receiver(web_socket=self.ws)
         self.type_validator = TypeValidator()
+        self.chain_id = None
+        self.dynamic_global_chain_data = None
+        self.set_chain_params()
 
     @staticmethod
     def get_call_template():
@@ -49,10 +54,15 @@ class Base:
                 raise Exception("Wrong format of operation results")
         return operation_results
 
+    def set_chain_params(self):
+        tx = self.echo.create_transaction()
+        self.chain_id = tx._get_chain_id()
+        self.dynamic_global_chain_data = tx._get_dynamic_global_chain_data(dynamic_global_object_id='2.1.0')[0]
+
     def create_connection_to_echo(self):
         return create_connection(url = self.node_url)
 
-    def _connect_to_echopy_lib(self):
+    def connect_to_echopy_lib(self):
         self.echo.connect(url = self.node_url, debug = DEBUG)
         if self.echo.api.ws.connection is None:
             raise Exception("Connection to echopy-lib not established")

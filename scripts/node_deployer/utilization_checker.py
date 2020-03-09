@@ -4,7 +4,8 @@ import os
 import time
 import psutil
 import threading
-from deployer import client 
+from .deployer import client 
+from .tps_checker import tps_checker
 
 class utillization_checker:
     def __init__(self, addresses = [], names = []):
@@ -46,25 +47,33 @@ class utillization_checker:
         base = "du -sb /tmp/echorand_test_datadir/{}/blockchain"
         while (self.is_running):
             for i, pid in zip(range(0, len(self.pids)), self.pids):
+                block_number = tps_checker.get_block_number()
                 process = psutil.Process(pid)
                 rssize = process.memory_info().rss
                 vmsize = process.memory_info().vms
-                bytes = self.containers[i].exec_run(base.format(self.names[i])).output
-                dirsize = bytes.decode('utf-8').split('\t')[0]
-                self.files[i].write("%d  %d  %s\n" % (rssize, vmsize, dirsize))
+                cpu = process.cpu_percent(interval=1)
+                bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/database").output
+                dbsize = bytes.decode('utf-8').split('\t')[0]
+                bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/x86_vm").output
+                x86size = bytes.decode('utf-8').split('\t')[0]
+                bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/evm").output
+                evmsize = bytes.decode('utf-8').split('\t')[0]
+                self.files[i].write("%d %d  %d  %f  %s  %s  %s\n" % (block_number, rssize, vmsize, cpu, dbsize, x86size, evmsize))
+                self.files[i].flush()
             time.sleep(20)
 
     def run_check(self):
         self.is_running = True
         self.t = threading.Thread(target=self.collect_stats)
         self.t.start()
+        print("Started utilization checker - Done")
 
     def stop_check(self):
         self.is_running = False
         self.t.join()
         for file in self.files:
             file.close()
-        print("Results: ", os.getpid())
+        print("Utilization checker results:", os.getpid())
 
 #def test():
 #    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")

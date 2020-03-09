@@ -8,6 +8,9 @@ import signal
 import time
 import tempfile
 import subprocess
+import sys
+
+from ..utils.files_path import RESOURCES_DIR
 
 COMMITTEE_COUNT=20
 PRIVATE_KEYS = ["5KBPWjxKz8Ym7CLatFMa5XtfbvTzEt7vMugkRNk7go9dBQfJLYt",
@@ -68,6 +71,7 @@ class deployer:
         self.echo_bin = echo_bin
         self.echo_data_dir = "./tmp/echorand_test_datadir"
         self.image = image
+        self.pumba_started = False
 
         self.port = 13375
         self.rpc_port = 8090
@@ -161,7 +165,7 @@ class deployer:
 
     def copy_data(self):
         for name in self.node_names:
-            self.copy_to("{}:/".format(name), "../resources/access.json", "../resources/private_genesis.json")
+            self.copy_to("{}:/".format(name), RESOURCES_DIR+"/access.json", RESOURCES_DIR+"/private_genesis.json")
             self.copy_to("{}:/echo_node".format(name), self.echo_bin)
 
     def start_nodes(self):
@@ -201,12 +205,21 @@ class deployer:
         return self.node_names
 
     def run_pumba(self, nodes, time, jitter):
+        self.pumba_started = True
         cmd = "{pumba_bin} netem --interface=eth0 --duration 90m delay --time {time} --jitter {jitter} --correlation 0 {containers}"
         self.pumba_proc = subprocess.Popen(cmd.format(pumba_bin=self.pumba_bin,
             time=time, jitter=jitter, containers = nodes), shell=True, preexec_fn=os.setsid)
 
+    def wait_nodes(self):
+        for addr in self.addresses:
+            while self.node_is_not_started(addr):
+                time.sleep(1)
+        time.sleep(10) # unexplored behavior: without sleep node can crash during running
+        print("Node deploying - Done")
+
     def kill_pumba(self):
-        os.killpg(os.getpgid(self.pumba_proc.pid), signal.SIGTERM)
+        if self.pumba_started == True:
+            os.killpg(os.getpgid(self.pumba_proc.pid), signal.SIGTERM)
 
 def test():
     d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
