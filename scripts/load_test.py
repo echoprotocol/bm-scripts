@@ -9,15 +9,20 @@ from .utils.utils import tx_ratio
 
 class load_test:
     def __init__(self, node_count, echo_bin, image, pumba_bin, delay_time, conn_type, tx_count = 10, cycles = 1):
-        self.tx_count = tx_count
-        self.cycles = cycles
-        self.node_count = node_count
-        self.d = deployer(echo_bin=echo_bin, pumba_bin=pumba_bin, node_count=node_count, image=image, conn_type=conn_type)
-
-        nodes_names = self.get_nodes_names()
-        self.d.run_pumba(nodes_names, delay_time, 0)
-
-        self.d.wait_nodes()
+        try:
+            self.tx_count = tx_count
+            self.cycles = cycles
+            self.node_count = node_count
+            self.d = deployer(echo_bin=echo_bin, pumba_bin=pumba_bin, node_count=node_count, image=image, conn_type=conn_type)
+            nodes_names = self.get_nodes_names()
+            if delay_time != 0:
+                print("Delay in test", delay_time,"ms")
+                self.d.run_pumba(nodes_names, delay_time, 0)
+            self.d.wait_nodes()
+        except Exception as e:
+            self.d.kill_pumba()
+            self.d.stop_containers()
+            raise e
 
     def get_nodes_names(self):
         nodes_names = ""

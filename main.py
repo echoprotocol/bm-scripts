@@ -3,6 +3,8 @@
 import argparse
 import traceback
 import logging
+import signal
+import sys
 
 from scripts.tps_test import tps_test
 from scripts.database_size_test import database_size_test
@@ -28,11 +30,9 @@ def set_options(parser):
     parser.add_argument('-t', '--time', dest='time', action='store', 
         type=int, help="Delay on network interface in ms", default=0)
     parser.add_argument('-s', '--suite', dest='suite', action='store',
-        type=str, help="Name of test suite. Can be the next: tps, database[will be added]... ", required=True)
+        type=str, help="Name of test suite. Can be the next: tps, database, load, propagation ", required=True)
     parser.add_argument('-txs', '--txs_count', dest='txs_count', action='store',
         type=int, help="Number of transactions", default=10000)
-    parser.add_argument('-ct', '--conn_type', action='store', dest='conn_type',
-        type=str, help="Network configurations. Can be the next: all_to_all, cyclic, serial", default="all_to_all")
     parser.add_argument('-tt', '--tx_type', dest='tx_type', action='store',
         type=str, help="Transaction type: transfer, create_evm, call_emv, create_x86, call_x86", default = "transfer")
     parser.add_argument('-sc', '--send_cycles', dest='cycles', action='store',
@@ -93,11 +93,34 @@ def select_suite(args):
         return load_test(args.node_count, args.echo_bin, args.image, args.pumba_bin, args.time,
             get_connection_type(args.conn_type), tx_count=args.txs_count, cycles=args.cycles)
 
+def stop_checkers(test):
+    if test is not None:
+        if test.tc is not None:
+            test.tc.ws.close()
+            test.tc.is_interrupted = True
+            print("Waiting tps checker...")
+            test.tc.wait_check()
+        if test.uc is not None:
+            print("Waiting utilization checker...")
+            test.uc.stop_check()
+    raise SystemExit("Exited from Ctrl-C handler")
+
+def cleanup_resources(test, clr):
+    if test is not None:
+        test.d.kill_pumba()
+    if clr == True:
+        test.d.stop_containers()
+
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     set_options(parser)
     args = parser.parse_args()
     test = None
+    def signal_handler(sig, frame):
+        print("\nCaught SIGINT, wait while checkers will be closed:")
+        stop_checkers(test)
+
+    signal.signal(signal.SIGINT, signal_handler)
     try:
         test = select_suite(args)
         test.run_test()
@@ -105,11 +128,10 @@ def main():
             test.d.stop_containers()
     except Exception as e:
         logging.error(traceback.format_exc())
-        print(type(test))
-        if test is not None:
-            test.d.kill_pumba()
-        if args.clear == True:
-            test.d.stop_containers()
-    
+        cleanup_resources(test, args.clear)
+    except SystemExit as e:
+        print(e)
+        cleanup_resources(test, args.clear)
+
 if __name__ == "__main__":
     main()

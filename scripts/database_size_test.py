@@ -8,12 +8,17 @@ from .utils.utils import tx_ratio
 
 class database_size_test:
     def __init__(self, node_count, echo_bin, image, tx_count = 1000, cycles = 1):
-        self.tx_count = tx_count
-        self.cycles = cycles
-        self.d = deployer(node_count=node_count, echo_bin=echo_bin, image=image)
-        self.d.wait_nodes()
-        self.s = Sender(self.d.get_addresses()[0])
-        self.s.import_balance_to_nathan()
+        try:
+            self.tx_count = tx_count
+            self.cycles = cycles
+            self.d = deployer(node_count=node_count, echo_bin=echo_bin, image=image)
+            self.d.wait_nodes()
+            self.s = Sender(self.d.get_addresses()[0])
+            self.s.import_balance_to_nathan()
+        except Exception as e:
+            self.d.kill_pumba()
+            self.d.stop_containers()
+            raise e
 
     def run_test(self):
         self.s.create_contract(x86_64_contract = True, with_response = True)
