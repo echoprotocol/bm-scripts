@@ -10,6 +10,7 @@ from .utils.utils import tx_ratio
 class load_test:
     def __init__(self, node_count, echo_bin, image, pumba_bin, delay_time, conn_type, tx_count = 10, cycles = 1):
         try:
+            self.is_interrupted = False
             self.tx_count = tx_count
             self.cycles = cycles
             self.node_count = node_count
@@ -33,14 +34,15 @@ class load_test:
         return nodes_names
 
     def send_set(self, sender):
-        for i in range(self.cycles):
+        i = 0
+        while self.is_interrupted == False and i < self.cycles:
             sender.transfer(int(self.tx_count * tx_ratio.transfer))
             sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = True)
             sender.call_contract(contract_id = "1.11.0", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = True)
             sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = False)
             sender.call_contract(contract_id = "1.11.1", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = False)
-            # sleep(self.tx_count * self.node_count / 100)
             sleep(2)
+            i += 1
 
     def run_test(self):
         senders_list = []
@@ -55,20 +57,29 @@ class load_test:
         senders_list[0].create_contract(x86_64_contract = True, with_response = True)
         senders_list[0].create_contract(x86_64_contract = False, with_response = True)
 
-        uc = utillization_checker([self.d.get_addresses()[1]], ["echonode1"])
-        uc.run_check()
-        tc = tps_checker(self.d.get_addresses()[0], self.tx_count * self.cycles * self.node_count)
-        tc.run_check()
+        self.uc = utillization_checker([self.d.get_addresses()[1]], ["echonode1"])
+        self.uc.run_check()
+        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count * self.cycles * self.node_count)
+        self.tc.run_check()
 
-        threads_list = []
+        self.threads_list = []
 
         for s in senders_list:
             t = threading.Thread(target=self.send_set, args=(s, ))
-            threads_list.append(t)
+            self.threads_list.append(t)
 
-        for t in threads_list:
+        for t in self.threads_list:
             t.start()
 
-        tc.wait_check()
-        uc.stop_check()
+        self.tc.wait_check()
+        self.uc.stop_check()
         self.d.kill_pumba()
+        for t in self.threads_list:
+            t.join()
+
+    def stop_checkers(self):
+        self.is_interrupted = True
+        for t in self.threads_list:
+            t.join()
+        self.tc.interrupt_checker()
+        self.uc.interrupt_checker()
