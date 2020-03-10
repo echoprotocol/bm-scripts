@@ -4,6 +4,8 @@ import json
 from datetime import datetime
 from websocket import create_connection
 import threading
+import traceback
+import logging
 
 login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}'
 database_req = '{"method": "call", "params": [1, "database", []], "id": 0}'
@@ -65,8 +67,12 @@ class tps_checker:
                     self.tps = self.collected_tx_number
                 else:
                     self.tps = self.collected_tx_number / ((end - start).seconds)
-        except:     # json.loads or ws.recv() may throw exception when ws asynchronusly closed, 
-            pass    # we continue execution is_interrupted flag will be in True
+        except Exception:
+            if self.is_interrupted == False:
+                print("Caught exception in tps colletor thread:")
+                print("-------------------------------------------")
+                logging.error(traceback.format_exc())
+                print("-------------------------------------------")
 
     def get_tps(self):
         return self.tps
@@ -81,8 +87,8 @@ class tps_checker:
         print("tps -", self.tps)
 
     def interrupt_checker(self):
-        self.ws.close()
         self.is_interrupted = True
+        self.ws.close()
         print("Waiting tps checker...")
         self.wait_check()
 

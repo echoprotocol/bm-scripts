@@ -10,6 +10,7 @@ from .utils.utils import tx_ratio
 class load_test:
     def __init__(self, node_count, echo_bin, image, pumba_bin, delay_time, conn_type, tx_count = 10, cycles = 1):
         try:
+            self.d = None
             self.is_interrupted = False
             self.tx_count = tx_count
             self.cycles = cycles
@@ -21,8 +22,9 @@ class load_test:
                 self.d.run_pumba(nodes_names, delay_time, 0)
             self.d.wait_nodes()
         except Exception as e:
-            self.d.kill_pumba()
-            self.d.stop_containers()
+            if self.d is not None:
+                self.d.kill_pumba()
+                self.d.stop_containers()
             raise e
 
     def get_nodes_names(self):

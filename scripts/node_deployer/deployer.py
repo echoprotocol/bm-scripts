@@ -189,6 +189,7 @@ class deployer:
             try:
                 container = client.containers.get(name)
                 container.stop()
+                container.remove()
             except:
                 pass
 

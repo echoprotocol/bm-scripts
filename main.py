@@ -112,7 +112,7 @@ def main():
     args = parser.parse_args()
     test = None
     def signal_handler(sig, frame):
-        print("\nCaught SIGINT, wait while checkers will be closed:")
+        print("\nCaught SIGINT, waiting closing:")
         if test is not None:
             test.stop_checkers()
         raise SystemExit("Exited from Ctrl-C handler")
@@ -124,9 +124,13 @@ def main():
         if args.clear == True:
             test.d.stop_containers()
     except Exception as e:
+        print("Caught exception, exit cleanly.")
+        print("-------------------------------------------")
         logging.error(traceback.format_exc())
         cleanup_resources(test, args.clear)
         check_pumba()
+        print("-------------------------------------------")
+        print("Exited")
     except SystemExit as e:
         print(e)
         cleanup_resources(test, args.clear)
