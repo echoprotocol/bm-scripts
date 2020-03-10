@@ -11,6 +11,7 @@ pending_callback = '{"method": "set_pending_transaction_callback", "params": ["0
 
 class propagation_checker:
     def __init__(self, addr):
+        self.is_interrupted = False
         url = "ws://{}:8090".format(addr)
         self.ws = create_connection(url)
         self.login_api()
@@ -23,13 +24,16 @@ class propagation_checker:
         self.ws.recv()
 
     def send_and_wait(self, tx):
-        self.ws.send(pending_callback)
-        self.ws.recv()
-        while True:
-            response = json.loads(self.ws.recv())
-            if "params" in response and tx._signatures == response['params'][1][0]['signatures']:
-                self.time = time.time()
-                break
+        try:
+            self.ws.send(pending_callback)
+            self.ws.recv()
+            while self.is_interrupted == False:
+                response = json.loads(self.ws.recv())
+                if "params" in response and tx._signatures == response['params'][1][0]['signatures']:
+                    self.time = time.time()
+                    break
+        except:
+            pass
 
     def run_check(self, tx):
         self.t = threading.Thread(target=self.send_and_wait, args=(tx,))
@@ -40,3 +44,8 @@ class propagation_checker:
 
     def get_time(self):
         return self.time
+
+    def interrupt_checker(self):
+        self.ws.close()
+        self.is_interrupted = True
+        self.wait_check()

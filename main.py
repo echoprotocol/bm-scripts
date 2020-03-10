@@ -3,6 +3,7 @@
 import argparse
 import traceback
 import logging
+import psutil
 import signal
 import sys
 
@@ -93,24 +94,18 @@ def select_suite(args):
         return load_test(args.node_count, args.echo_bin, args.image, args.pumba_bin, args.time,
             get_connection_type(args.conn_type), tx_count=args.txs_count, cycles=args.cycles)
 
-def stop_checkers(test):
-    if test is not None:
-        if test.tc is not None:
-            test.tc.ws.close()
-            test.tc.is_interrupted = True
-            print("Waiting tps checker...")
-            test.tc.wait_check()
-        if test.uc is not None:
-            print("Waiting utilization checker...")
-            test.uc.stop_check()
-    raise SystemExit("Exited from Ctrl-C handler")
-
 def cleanup_resources(test, clr):
     if test is not None:
         test.d.kill_pumba()
     if clr == True:
         test.d.stop_containers()
 
+def check_pumba():
+    for proc in psutil.process_iter():
+        if (proc.name() == "pumba"):
+            p = psutil.Process(proc.pid)
+            p.kill()
+            break
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     set_options(parser)
@@ -118,7 +113,9 @@ def main():
     test = None
     def signal_handler(sig, frame):
         print("\nCaught SIGINT, wait while checkers will be closed:")
-        stop_checkers(test)
+        if test is not None:
+            test.stop_checkers()
+        raise SystemExit("Exited from Ctrl-C handler")
 
     signal.signal(signal.SIGINT, signal_handler)
     try:
@@ -129,9 +126,11 @@ def main():
     except Exception as e:
         logging.error(traceback.format_exc())
         cleanup_resources(test, args.clear)
+        check_pumba()
     except SystemExit as e:
         print(e)
         cleanup_resources(test, args.clear)
+        check_pumba()
 
 if __name__ == "__main__":
     main()

@@ -82,3 +82,12 @@ class tps_test:
         self.tc.wait_check()
         self.uc.stop_check()
         self.d.kill_pumba()
+
+    def stop_checkers(self):
+        print("STOP CHECKERS")
+        if self.tc is not None:
+            self.tc.interrupt_checker()
+        if self.uc is not None:
+            self.uc.interrupt_checker()
+        if self.d is not None:
+            self.d.kill_pumba()

@@ -75,6 +75,10 @@ class utillization_checker:
             file.close()
         print("Utilization checker results:", os.getpid())
 
+    def interrupt_checker(self):
+        print("Waiting utilization checker...")
+        self.stop_check()
+
 #def test():
 #    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
 #    u = utillization_checker(d.get_addresses(), d.get_node_names())

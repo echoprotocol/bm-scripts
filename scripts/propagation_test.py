@@ -7,6 +7,8 @@ from time import sleep
 class propagation_test:
     def __init__(self, node_count, echo_bin, image, pumba_bin, delay, delayed_lst):
         try:
+            self.pc1 = None
+            self.pc2 = None
             self.delay = delay
             self.d = deployer(node_count=node_count, echo_bin=echo_bin, image=image,
                               conn_type = connect_type.serial, pumba_bin = pumba_bin)
@@ -20,8 +22,9 @@ class propagation_test:
             self.s = Sender(self.d.get_addresses()[0])
             self.s.import_balance_to_nathan()
         except Exception as e:
-            self.d.kill_pumba()
-            self.d.stop_containers()
+            if self.d is not None:
+                self.d.kill_pumba()
+                self.d.stop_containers()
             raise e
 
     def node_names(self, lst):
@@ -30,14 +33,20 @@ class propagation_test:
         return dnodes
 
     def run_test(self):
-        pc1 = propagation_checker(self.d.get_addresses()[0])
-        pc2 = propagation_checker(self.d.get_addresses()[-1])
+        self.pc1 = propagation_checker(self.d.get_addresses()[0])
+        self.pc2 = propagation_checker(self.d.get_addresses()[-1])
         for i in range(5):
             self.tx = self.s.create_transfer_transaction()
-            pc1.run_check(self.tx)
-            pc2.run_check(self.tx)
+            self.pc1.run_check(self.tx)
+            self.pc2.run_check(self.tx)
             self.s.echo_ops.broadcast(self.tx, with_response = False)
-            pc1.wait_check()
-            pc2.wait_check()
-            print("Propagation time: ", pc2.get_time() - pc1.get_time())
+            self.pc1.wait_check()
+            self.pc2.wait_check()
+            print("Propagation time: ", self.pc2.get_time() - self.pc1.get_time())
         self.d.kill_pumba()
+
+    def stop_checkers(self):
+       if self.pc1 is not None:
+            self.pc1.interrupt_checker()
+       if self.pc2 is not None:
+            self.pc2.interrupt_checker()

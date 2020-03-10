@@ -40,10 +40,10 @@ class tps_checker:
         return tps_checker.block_number
 
     def collect_tps(self):
-        response = ""
-        while self.collected_tx_number != self.sent_tx_number and self.is_interrupted == False:
-            receive = self.ws.recv()
-            try:
+        try:
+            response = ""
+            while self.collected_tx_number != self.sent_tx_number and self.is_interrupted == False:
+                receive = self.ws.recv()
                 if "method" in receive:
                     response = json.loads(receive)
                     block_id = response['params'][1][0][0]['head_block_id']
@@ -55,19 +55,18 @@ class tps_checker:
                     print("Collected txs -", self.collected_tx_number)
                     if self.collected_tx_number != 0 and self.start_time == "":
                         self.start_time = response['params'][1][0][0]['time']
-            except:     # json.loads may throw exception when ws asynchronusly closed, 
-                pass    # we continue execution is_interrupted flag will be in True
-                
 
-        if self.is_interrupted == False:
-            self.end_time = response['params'][1][0][0]['time']
-            start = datetime.strptime(self.start_time, '%Y-%m-%dT%H:%M:%S')
-            end = datetime.strptime(self.end_time, '%Y-%m-%dT%H:%M:%S')
-            diff = (end - start).seconds
-            if diff == 0:
-                self.tps = self.collected_tx_number
-            else:
-                self.tps = self.collected_tx_number / ((end - start).seconds)
+            if self.is_interrupted == False:
+                self.end_time = response['params'][1][0][0]['time']
+                start = datetime.strptime(self.start_time, '%Y-%m-%dT%H:%M:%S')
+                end = datetime.strptime(self.end_time, '%Y-%m-%dT%H:%M:%S')
+                diff = (end - start).seconds
+                if diff == 0:
+                    self.tps = self.collected_tx_number
+                else:
+                    self.tps = self.collected_tx_number / ((end - start).seconds)
+        except:     # json.loads or ws.recv() may throw exception when ws asynchronusly closed, 
+            pass    # we continue execution is_interrupted flag will be in True
 
     def get_tps(self):
         return self.tps
@@ -80,6 +79,12 @@ class tps_checker:
     def wait_check(self):
         self.t.join()
         print("tps -", self.tps)
+
+    def interrupt_checker(self):
+        self.ws.close()
+        self.is_interrupted = True
+        print("Waiting tps checker...")
+        self.wait_check()
 
 #def test():
 #    tc = tps_checker("172.17.0.2", 10)
