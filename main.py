@@ -97,8 +97,8 @@ def select_suite(args):
 def cleanup_resources(test, clr):
     if test is not None:
         test.d.kill_pumba()
-    if clr == True:
-        test.d.stop_containers()
+        if clr == True:
+            test.d.stop_containers()
 
 def check_pumba():
     for proc in psutil.process_iter():
