@@ -1,3 +1,2 @@
 FROM ubuntu:latest
-RUN apt-get update
-RUN apt install iproute2 vim-tiny -y
+RUN apt-get update && apt-get install iproute2 vim-tiny google-perftools -y
