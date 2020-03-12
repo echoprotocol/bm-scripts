@@ -129,9 +129,9 @@ class deployer:
     def set_launch_args(self):
         base = ""
         if (self.conn_type == connect_type.all_to_all):
-            base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand"
+            base = "HEAPPROFILE=heapprof ./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand"
         else:
-            base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand --config-seeds-only"
+            base = "HEAPPROFILE=heapprof ./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand --config-seeds-only"
         for i in range(self.node_count):
             rpc="--rpc-endpoint={}:{}".format(self.addresses[i], self.rpc_port)
             p2p="--p2p-endpoint={}:{} {}".format(self.addresses[i], self.port, self.seed_node_args[i])
