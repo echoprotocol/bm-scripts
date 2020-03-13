@@ -136,5 +136,8 @@ def main():
         cleanup_resources(test, args.clear)
         check_pumba()
 
+from scripts.node_deployer.deployer import test
+
 if __name__ == "__main__":
-    main()
+    test()
+    #main()
