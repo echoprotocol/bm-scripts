@@ -9,6 +9,7 @@ import time
 import tempfile
 import subprocess
 import sys
+import socket
 
 from ..utils.files_path import RESOURCES_DIR
 
@@ -57,36 +58,37 @@ class connect_type(Enum):
 client = docker.from_env()
 
 class deployer:
-    def __init__(self, echo_bin="", pumba_bin="", node_count = 2, image = "",\
-                 conn_type = connect_type.all_to_all):
+    def __init__(self, echo_bin="", pumba_bin="", node_count=2, image="",\
+                 conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args=""):
         self.delayed_nodes=[]
         self.node_names=[]
         self.inverse_delayed_nodes=[]
         self.addresses=[]
+        self.ports=[]
+        self.rpc_ports=[]
         self.seed_node_args=[]
         self.account_info_args=[]
         self.launch_strs=[]
+        self.host_addresses=host_addresses
+        self.start_node = start_node
 
         self.pumba_bin = pumba_bin
         self.echo_bin = echo_bin
         self.echo_data_dir = "./tmp/echorand_test_datadir"
         self.image = image
         self.pumba_started = False
+        self.host_ip = self.get_host_ip()
+        print(self.host_ip)
 
         self.port = 13375
         self.rpc_port = 8090
         self.node_count = node_count
         self.conn_type = conn_type
 
-        self.set_node_names()
-        self.stop_containers() # stop before start if not stopped in previous run
-        self.start_contrainers()
-        self.set_node_addresses()
-        self.set_seed_node_args()
-        self.set_account_info_args()
-        self.copy_data()
-        self.set_launch_args()
-        self.start_nodes()
+        if remote == True:
+            self.remote_deploying()
+        else:
+            self.local_deploying()
 
     def set_node_names(self):
         for i in range(self.node_count):
@@ -96,6 +98,11 @@ class deployer:
         for name in self.node_names:
             container = client.containers.get(name)
             self.addresses.append(container.attrs['NetworkSettings']['IPAddress'])
+
+    def set_ports(self):
+        for i in range(self.node_count):
+            self.ports.append(self.port+i)
+            self.rpc_ports.append(self.rpc_port+i)
 
     def set_seed_node_args(self):
         if (self.conn_type == connect_type.serial):
@@ -126,6 +133,38 @@ class deployer:
             for i in range(COMMITTEE_COUNT, self.node_count):
                 self.account_info_args.append("--plugins=registration --api-access=./access.json")
 
+    def set_remote_account_info_args(self):
+        account_str = "--account-info \[\\\"1.2.{}\\\",\\\"{}\\\"\] "
+        extra_str = "--plugins=registration --registrar-account=\\\"1.2.{}\\\" --api-access=./access.json"
+
+        servercount = len(self.host_addresses) + 1 # plus one due to my current host also should be counted
+        accs_per_server = int(COMMITTEE_COUNT / servercount)
+        accs_on_first_server = accs_per_server + COMMITTEE_COUNT % servercount
+        start_pos = 0
+        if self.start_node > 0:
+            start_pos = accs_on_first_server+(self.start_node - 1)*accs_per_server 
+        if self.start_node == 0:
+            accs_per_server = accs_on_first_server
+        if accs_per_server < self.node_count:
+            for i in range(accs_per_server):
+                account_args = "" + account_str.format(i+start_pos+6,PRIVATE_KEYS[i+start_pos]) + extra_str.format(i+start_pos+6)
+                self.account_info_args.append(account_args)
+            for i in range(accs_per_server, self.node_count):
+                #account_args = "" + extra_str.format(i+start_pos+6)
+                account_args = ""
+                self.account_info_args.append(account_args)
+        else:
+            accs_per_node = int(accs_per_server / self.node_count)
+            for i in range(self.node_count-1):
+                account_args = ""
+                for j in range(i*accs_per_node, (i+1)*accs_per_node):
+                    account_args = account_args + account_str.format(j+start_pos+6,PRIVATE_KEYS[j+start_pos])
+                self.account_info_args.append(account_args + extra_str.format(i*accs_per_node+ start_pos + 6))
+            account_args = ""
+            for j in range((self.node_count-1)*accs_per_node, accs_per_server):
+                account_args = account_args + account_str.format(j+start_pos+6,PRIVATE_KEYS[j+start_pos])
+            self.account_info_args.append(account_args + extra_str.format((self.node_count-1)*accs_per_node + start_pos+ 6))
+            
     def set_launch_args(self):
         base = ""
         if (self.conn_type == connect_type.all_to_all):
@@ -133,28 +172,37 @@ class deployer:
         else:
             base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand --config-seeds-only"
         for i in range(self.node_count):
-            rpc="--rpc-endpoint={}:{}".format(self.addresses[i], self.rpc_port)
-            p2p="--p2p-endpoint={}:{} {}".format(self.addresses[i], self.port, self.seed_node_args[i])
+            rpc="--rpc-endpoint={}:{}".format(self.addresses[i], self.rpc_ports[i])
+            p2p="--p2p-endpoint={}:{} {}".format(self.addresses[i], self.ports[i], self.seed_node_args[i])
             self.launch_strs.append(base.format(datadir=self.echo_data_dir, dir=self.node_names[i], dnum=i, p2p=p2p, rpc=rpc, acc_infos=self.account_info_args[i]))
 
     def form_serial_connection(self):
         self.seed_node_args.append("")
         for i in range(1, self.node_count):
-            self.seed_node_args.append("--seed-node={}:{}".format(self.addresses[i-1], self.port))
+            self.seed_node_args.append("--seed-node={}:{}".format(self.addresses[i-1], self.ports[i-1]))
 
     def form_circlular_connection(self):
         self.seed_node_args.append("")
         for i in range(1, self.node_count):
-            self.seed_node_args.append("--seed-node={}:{}".format(self.addresses[i-1], self.port))
-        self.seed_node_args[0]="--seed-node={}:{}".format(self.addresses[self.node_count-1], self.port)
+            self.seed_node_args.append("--seed-node={}:{}".format(self.addresses[i-1], self.ports[i-1]))
+        self.seed_node_args[0]="--seed-node={}:{}".format(self.addresses[self.node_count-1], self.ports[node_count-1])
 
     def form_all_to_all_connection(self):
         for i in range(0, self.node_count):
             seed_args = ""
             for j in range(0, self.node_count):
                 if (i != j):
-                    seed_args = seed_args + ("--seed-node={}:{} ".format(self.addresses[j], self.port))
+                    seed_args = seed_args + ("--seed-node={}:{} ".format(self.addresses[j], self.ports[j]))
             self.seed_node_args.append(seed_args)
+
+    def form_all_to_all_remote_connection(self):
+        self.form_all_to_all_connection()
+        for i in range(self.node_count):
+            seed_args = ""
+            for addr, count in self.host_addresses.items():
+                for j in range(count):
+                    seed_args = seed_args + ("--seed-node={}:{} ".format(addr, self.port+j))
+            self.seed_node_args[i] = self.seed_node_args[i] + seed_args
 
     def copy_to(self, dst, *args):
         name, dst = dst.split(':')
@@ -171,6 +219,7 @@ class deployer:
     def start_nodes(self):
         container = client.containers.get(self.node_names[0])
         cmd = "/bin/sh -c '{}'".format(self.launch_strs[0])
+        print("CMD : ", cmd)
         container.exec_run(cmd, detach=True)
         for i in range(1, self.node_count):
             container = client.containers.get(self.node_names[i])
@@ -178,11 +227,13 @@ class deployer:
             while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(self.addresses[i-1])):
                 time.sleep(1)
             container.exec_run(cmd, detach=True)
+            print("CMD : ", cmd)
 
     def start_contrainers(self):
-        for name in self.node_names:
+        for i in range(self.node_count):
             container = client.containers.run(self.image,\
-                detach=True,name=name,remove=True,tty=True)
+                detach=True,name=self.node_names[i],remove=True,tty=True,ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
+                                                                                '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])})
 
     def stop_containers(self):
         for name in self.node_names:
@@ -193,9 +244,9 @@ class deployer:
             except:
                 pass
 
-    def node_is_not_started(self, addr): # return true if node is not started yet
+    def node_is_not_started(self, addr, port): # return true if node is not started yet
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex((addr, self.rpc_port))
+        result = sock.connect_ex((addr, port))
         sock.close()
         return result
 
@@ -212,8 +263,8 @@ class deployer:
             time=time, jitter=jitter, containers = nodes), shell=True, preexec_fn=os.setsid)
 
     def wait_nodes(self):
-        for addr in self.addresses:
-            while self.node_is_not_started(addr):
+        for i in range(self.node_count):
+            while self.node_is_not_started(self.addresses[i], self.rpc_ports[i]):
                 time.sleep(1)
         time.sleep(10) # unexplored behavior: without sleep node can crash during running
         print("Node deploying - Done")
@@ -221,13 +272,55 @@ class deployer:
     def kill_pumba(self):
         if self.pumba_started == True:
             os.killpg(os.getpgid(self.pumba_proc.pid), signal.SIGTERM)
+    
+    def get_host_ip(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        host_ip = s.getsockname()[0]
+        s.close()
+        return host_ip
 
+    def get_all_node_count(self):
+        n = 0
+        for _, node_count in self.host_addresses.items():
+            n += node_count
+        n += self.node_count
+        return n
+
+    def remote_deploying(self):
+        node_count = self.get_all_node_count()
+        self.set_node_names()
+        self.set_ports()
+        self.stop_containers() # stop before start if not stopped in previous run
+        self.start_contrainers()
+        self.set_node_addresses()
+        self.form_all_to_all_remote_connection()
+        self.set_remote_account_info_args()
+        self.copy_data()
+        self.set_launch_args()
+        self.start_nodes()
+
+    def local_deploying(self):
+        self.set_node_names()
+        self.set_ports()
+        self.stop_containers() # stop before start if not stopped in previous run
+        self.start_contrainers()
+        self.set_node_addresses()
+        self.set_seed_node_args()
+        self.set_account_info_args()
+        self.copy_data()
+        self.set_launch_args()
+        self.start_nodes()
+
+#def test():
+#    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
+#    nodes = "echonode0 echonode1"
+#    d.run_pumba(nodes, 500, 10)
+#    time.sleep(30)
+#    d.kill_pumba()
+#    #d.stop_containers()
+
+    #def __init__(self, echo_bin="", pumba_bin="", node_count=2, image="",\
+    #             conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args=""):
 def test():
-    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
-    nodes = "echonode0 echonode1"
-    d.run_pumba(nodes, 500, 10)
-    time.sleep(30)
-    d.kill_pumba()
-    #d.stop_containers()
-
-#test()
+    d = deployer(node_count=30, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay", start_node = 2, host_addresses = {"192.168.2.2": 30, "192.168.2.3": 30}, remote = True)
