@@ -219,7 +219,7 @@ class deployer:
     def start_nodes(self):
         container = client.containers.get(self.node_names[0])
         cmd = "/bin/sh -c '{}'".format(self.launch_strs[0])
-        print("CMD : ", cmd)
+        #print("CMD : ", cmd)
         container.exec_run(cmd, detach=True)
         for i in range(1, self.node_count):
             container = client.containers.get(self.node_names[i])
@@ -227,7 +227,7 @@ class deployer:
             while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(self.addresses[i-1])):
                 time.sleep(1)
             container.exec_run(cmd, detach=True)
-            print("CMD : ", cmd)
+            #print("CMD : ", cmd)
 
     def start_contrainers(self):
         for i in range(self.node_count):
@@ -322,5 +322,5 @@ class deployer:
 
     #def __init__(self, echo_bin="", pumba_bin="", node_count=2, image="",\
     #             conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args=""):
-def test():
-    d = deployer(node_count=30, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay", start_node = 2, host_addresses = {"192.168.2.2": 30, "192.168.2.3": 30}, remote = True)
+#def test():
+#    d = deployer(node_count=30, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay", start_node = 2, host_addresses = {"192.168.2.2": 30, "192.168.2.3": 30}, remote = True)

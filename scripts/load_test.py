@@ -2,7 +2,7 @@ import threading
 from time import sleep
 
 from .node_deployer.deployer import deployer
-from .node_deployer.utilization_checker import utillization_checker
+from .node_deployer.utilization_checker import utilization_checker
 from .node_deployer.tps_checker import tps_checker
 from .node_sender.sender import Sender
 from .utils.utils import tx_ratio
@@ -59,9 +59,9 @@ class load_test:
         senders_list[0].create_contract(x86_64_contract = True, with_response = True)
         senders_list[0].create_contract(x86_64_contract = False, with_response = True)
 
-        self.uc = utillization_checker([self.d.get_addresses()[1]], ["echonode1"])
+        self.uc = utilization_checker([self.d.get_addresses()[1]], [self.d.ports[1]], ["echonode1"])
         self.uc.run_check()
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count * self.cycles * self.node_count)
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count * self.cycles * self.node_count)
         self.tc.run_check()
 
         self.threads_list = []

@@ -1,7 +1,7 @@
 from time import sleep
 
 from .node_deployer.deployer import deployer
-from .node_deployer.utilization_checker import utillization_checker
+from .node_deployer.utilization_checker import utilization_checker
 from .node_deployer.tps_checker import tps_checker
 from .node_sender.sender import Sender
 from .utils.utils import tx_ratio
@@ -24,9 +24,9 @@ class database_size_test:
     def run_test(self):
         self.s.create_contract(x86_64_contract = True, with_response = True)
         self.s.create_contract(x86_64_contract = False, with_response = True)
-        self.uc = utillization_checker([self.d.get_addresses()[1]], ["echonode1"])
+        self.uc = utilization_checker([self.d.get_addresses()[1]], [self.d.ports[1]], ["echonode1"])
         self.uc.run_check()
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count * self.cycles)
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count * self.cycles)
         self.tc.run_check()
         for i in range(self.cycles):
             self.s.transfer(int(self.tx_count * tx_ratio.transfer))

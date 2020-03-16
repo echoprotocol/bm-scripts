@@ -13,20 +13,6 @@ def set_options(parser):
         type=str, help="Name of image for docker containers", default="", required=True)
     parser.add_argument('-n', '--node_count', action='store', dest='node_count',
         type=int, help="Node count for deploying", default=2)
-    parser.add_argument('-ct', '--conn_type', action='store', dest='conn_type',
-        type=str, help="Network configurations. Can be the next: all_to_all, cyclic, serial", default="all_to_all")
-    parser.add_argument('-dn', '--delayed_node', dest='delayed_node', nargs='+',
-        type=int, help="Number on nodes which will be run under the network delay", default=[])
-    parser.add_argument('-idn', '--inverse_delayed_node', dest='inverse_delayed_node', nargs='+',
-        type=int, help="Number on nodes which will not be run under the network delay, all other nodes will be", default=[])
-    parser.add_argument('-t', '--time', dest='time', action='store', 
-        type=int, help="Delay on network interface in ms", default=0)
-    parser.add_argument('-txs', '--txs_count', dest='txs_count', action='store',
-        type=int, help="Number of transactions", default=10000)
-    parser.add_argument('-tt', '--tx_type', dest='tx_type', action='store',
-        type=str, help="Transaction type: transfer, create_evm, call_emv, create_x86, call_x86", default = "transfer")
-    parser.add_argument('-sc', '--send_cycles', dest='cycles', action='store',
-        type=int, help="Count of cycles of send", default=1)
     parser.add_argument('-sn', '--server_num', dest='server_num', action='store',
         type=int, help="Number of server on which deployer will be started", required=True)
     parser.add_argument('-hi', '--hosts_info', dest='hosts_info', action='store',
