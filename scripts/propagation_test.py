@@ -33,8 +33,8 @@ class propagation_test:
         return dnodes
 
     def run_test(self):
-        self.pc1 = propagation_checker(self.d.get_addresses()[0])
-        self.pc2 = propagation_checker(self.d.get_addresses()[-1])
+        self.pc1 = propagation_checker(self.d.get_addresses()[0], self.d.rpc_ports[0])
+        self.pc2 = propagation_checker(self.d.get_addresses()[-1], self.d.rpc_ports[-1])
         for i in range(5):
             self.tx = self.s.create_transfer_transaction()
             self.pc1.run_check(self.tx)

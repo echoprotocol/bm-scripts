@@ -10,9 +10,9 @@ database_req = '{"method": "call", "params": [1, "database", []], "id": 0}'
 pending_callback = '{"method": "set_pending_transaction_callback", "params": ["0"], "id": 0}'
 
 class propagation_checker:
-    def __init__(self, addr):
+    def __init__(self, addr, port):
         self.is_interrupted = False
-        url = "ws://{}:8090".format(addr)
+        url = "ws://{}:{}".format(addr, port)
         self.ws = create_connection(url)
         self.login_api()
         self.time = 0.0

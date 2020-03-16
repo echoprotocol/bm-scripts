@@ -1,6 +1,6 @@
 from .node_deployer.deployer import deployer
 from .node_deployer.deployer import connect_type
-from .node_deployer.utilization_checker import utillization_checker
+from .node_deployer.utilization_checker import utilization_checker
 from .node_deployer.tps_checker import tps_checker
 from .node_sender.sender import Sender
 
@@ -37,33 +37,33 @@ class tps_test:
 
     def run_transfer_case(self):
         print("Started transfer case,", "transaction count -", self.tx_count)
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count)
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
         self.s.transfer(self.tx_count)
 
     def run_create_evm_case(self):
         print("Started create evm case,", "transaction count -", self.tx_count)
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count)
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
         self.s.create_contract(transaction_count = self.tx_count, x86_64_contract = False)
 
     def run_call_emv_case(self):
         print("Started call evm case,", "transaction count -", self.tx_count)
         self.s.create_contract(x86_64_contract = False, with_response = True)
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count)
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
         self.s.call_contract(contract_id = "1.11.0", transaction_count = self.tx_count, x86_64_contract = False)
 
     def run_create_x86_case(self):
         print("Started create x86 case,", "transaction count -", self.tx_count)
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count)
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
         self.s.create_contract(transaction_count = self.tx_count, x86_64_contract = True)
 
     def run_call_x86_case(self):
         print("Started call x86 case,", "transaction count -", self.tx_count)
         self.s.create_contract(x86_64_contract = True, with_response = True)
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count)
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
         self.s.call_contract(contract_id = "1.11.0", transaction_count = self.tx_count, x86_64_contract = True)
 
@@ -76,7 +76,7 @@ class tps_test:
         casemap[self.tx_case]()
 
     def run_test(self):
-        self.uc = utillization_checker(self.d.get_addresses(), self.d.get_node_names())
+        self.uc = utilization_checker(self.d.get_addresses(), self.d.ports, self.d.get_node_names())
         self.uc.run_check()
         self.run_case()
         self.tc.wait_check()

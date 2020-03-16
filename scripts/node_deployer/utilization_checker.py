@@ -7,11 +7,13 @@ import threading
 from .deployer import client 
 from .tps_checker import tps_checker
 
-class utillization_checker:
-    def __init__(self, addresses = [], names = []):
+class utilization_checker:
+    def __init__(self, addresses = [], ports = [], names = []):
         self.addrs = addresses
+        self.ports = ports
         self.names = names
         self.pids = []
+        self.nums = []
         self.files = []
         self.containers = []
         self.set_pids()
@@ -20,11 +22,12 @@ class utillization_checker:
 
     def set_pids(self):
         base = "--p2p-endpoint={}:{}"
-        for addr in self.addrs:
+        for i in range(len(self.addrs)):
             for proc in psutil.process_iter():
                 if (proc.name() == "echo_node" and
-                    base.format(addr, 13375) in proc.cmdline()):
+                    base.format(self.addrs[i], self.ports[i]) in proc.cmdline()):
                         self.pids.append(proc.pid)
+                        self.nums.append(i)
 
     def set_containers(self):
         for name in self.names:
@@ -46,7 +49,7 @@ class utillization_checker:
     def collect_stats(self):
         base = "du -sb /tmp/echorand_test_datadir/{}/blockchain"
         while (self.is_running):
-            for i, pid in zip(range(0, len(self.pids)), self.pids):
+            for i, pid in zip(self.nums, self.pids):
                 block_number = tps_checker.get_block_number()
                 process = psutil.Process(pid)
                 rssize = process.memory_info().rss
@@ -81,7 +84,7 @@ class utillization_checker:
 
 #def test():
 #    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
-#    u = utillization_checker(d.get_addresses(), d.get_node_names())
+#    u = utilization_checker(d.get_addresses(), d.get_node_names())
 #    u.run_check()
 #    time.sleep(120)
 #    u.stop_check()
