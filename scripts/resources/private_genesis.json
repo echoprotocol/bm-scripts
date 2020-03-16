@@ -242,7 +242,7 @@
     "committee_proposal_review_period": 3600,
     "maximum_transaction_size": 2097152,
     "maximum_block_size": 5242880,
-    "maximum_time_until_expiration": 864000,
+    "maximum_time_until_expiration": 429496729,
     "maximum_proposal_lifetime": 2419200,
     "maximum_asset_whitelist_authorities": 10,
     "maximum_asset_feed_publishers": 10,

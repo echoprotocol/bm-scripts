@@ -19,8 +19,6 @@ def set_options(parser):
         type=str, help="Host info in dictionary formar: {\"ip address\" : number of nodes}", default="", required=True)
     parser.add_argument('-cl', '--clear', action='store_true', help="Clear containers after test execution")
 
-from scripts.node_deployer.deployer import test
-
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     set_options(parser)

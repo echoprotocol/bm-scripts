@@ -3,6 +3,8 @@
 import argparse
 from scripts.node_sender.sender import Sender
 import time
+import traceback
+import logging
 
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
@@ -13,16 +15,19 @@ def main():
     parser.add_argument('-txs', '--txs_count', dest='txs_count', action='store',
         type=int, help="Number of transactions", default=1)
     args = parser.parse_args()
-    print(args.addresses)
-    print(args.txs_count)
     
     start_port=8090
     slist=[]
+    info_lst=[]
     for addr in args.addresses:
         for i in range(args.node_count):
             try:
-                slist.append(Sender(addr, start_port+i, i*6000+180000*i))
+                print("Trying connect to",addr,":",start_port+i)
+                slist.append(Sender(addr, start_port+i, i*6000+18000*i))
+                info_lst.append("Address : {}  Port : {}".format(addr, start_port+i))
+                print("Done")
             except Exception as e:
+                logging.error(traceback.format_exc())
                 print(e)
     try:
         slist[0].import_balance_to_nathan()
@@ -30,9 +35,15 @@ def main():
         print(e)
 
     while True:
-        for s in slist:
-            s.transfer(args.txs_count)
-        time.sleep(1)
+        for s,i in zip(slist, info_lst):
+            try:
+                print("Trying sent transactions to:", i)
+                s.transfer(args.txs_count)
+                print(args.txs_count, "Transactions sent")
+                time.sleep(2)
+            except Exception as e:
+                print("Caught exception during transaction sending")
+                logging.error(traceback.format_exc())
 
 if __name__ == "__main__":
     main()

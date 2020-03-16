@@ -78,7 +78,6 @@ class deployer:
         self.image = image
         self.pumba_started = False
         self.host_ip = self.get_host_ip()
-        print(self.host_ip)
 
         self.port = 13375
         self.rpc_port = 8090
@@ -136,6 +135,7 @@ class deployer:
     def set_remote_account_info_args(self):
         account_str = "--account-info \[\\\"1.2.{}\\\",\\\"{}\\\"\] "
         extra_str = "--plugins=registration --registrar-account=\\\"1.2.{}\\\" --api-access=./access.json"
+        #extra_str = "--api-access=./access.json"
 
         servercount = len(self.host_addresses) + 1 # plus one due to my current host also should be counted
         accs_per_server = int(COMMITTEE_COUNT / servercount)
@@ -151,7 +151,7 @@ class deployer:
                 self.account_info_args.append(account_args)
             for i in range(accs_per_server, self.node_count):
                 #account_args = "" + extra_str.format(i+start_pos+6)
-                account_args = ""
+                account_args = "--api-access=./access.json"
                 self.account_info_args.append(account_args)
         else:
             accs_per_node = int(accs_per_server / self.node_count)
@@ -233,7 +233,7 @@ class deployer:
         for i in range(self.node_count):
             container = client.containers.run(self.image,\
                 detach=True,name=self.node_names[i],remove=True,tty=True,ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
-                                                                                '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])})
+                                                                                '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])},ulimits=[docker.types.Ulimit(name='core', soft=-1, hard=-1)])
 
     def stop_containers(self):
         for name in self.node_names:
