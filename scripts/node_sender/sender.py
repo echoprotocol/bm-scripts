@@ -12,8 +12,8 @@ from ..node_deployer.deployer import NATHAN_PRIV
 initial_balance = 1000000000000000
 
 class Sender(Base):
-    def __init__(self, node_url, call_id = 0):
-        super().__init__(node_url)
+    def __init__(self, node_url, node_port, call_id = 0):
+        super().__init__(node_url, node_port)
         self.call_id = call_id
         self.echo_nathan = "nathan"
         self.echo_nathan_id = "1.2.25"

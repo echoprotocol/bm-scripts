@@ -16,8 +16,8 @@ tx_count_req = '{{"method": "get_block_tx_number", "params": [{block_id}], "id":
 class tps_checker:
     block_number = 0
 
-    def __init__(self, addr, sent_tx_number):
-        url = "ws://{}:8090".format(addr)
+    def __init__(self, addr, rpc_port, sent_tx_number):
+        url = "ws://{}:{}".format(addr, rpc_port)
         self.tps = 0
         self.collected_tx_number = 0
         self.sent_tx_number = sent_tx_number

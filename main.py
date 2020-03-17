@@ -38,6 +38,7 @@ def set_options(parser):
         type=str, help="Transaction type: transfer, create_evm, call_emv, create_x86, call_x86", default = "transfer")
     parser.add_argument('-sc', '--send_cycles', dest='cycles', action='store',
         type=int, help="Count of cycles of send", default=1)
+    parser.add_argument('-wd', '--without_docker', action='store_true', help="Run echo nodes without docker")
     parser.add_argument('-cl', '--clear', action='store_true', help="Clear containers after test execution")
 
 
@@ -91,7 +92,7 @@ def select_suite(args):
        else:
            raise Exception("pumba_bin argmunet should be specified!")
     elif args.suite == "load":
-        return load_test(args.node_count, args.echo_bin, args.image, args.pumba_bin, args.time,
+        return load_test(args.node_count, args.without_docker, args.echo_bin, args.image, args.pumba_bin, args.time,
             get_connection_type(args.conn_type), tx_count=args.txs_count, cycles=args.cycles)
 
 def cleanup_resources(test, clr):

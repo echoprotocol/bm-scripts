@@ -13,9 +13,9 @@ from ..utils.files_path import ECHO_CONTRACTS, ETHEREUM_CONTRACTS
 DEBUG = False
 
 class Base:
-    def __init__(self, node_url):
+    def __init__(self, node_url, node_port):
         super().__init__()
-        self.node_url = "ws://{}:8090".format(node_url)
+        self.node_url = "ws://{}:{}".format(node_url, node_port)
         self.echo = Echo()
         self.echo_ops = EchoOperation()
         self.ws = self.create_connection_to_echo()

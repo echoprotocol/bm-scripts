@@ -13,7 +13,7 @@ class database_size_test:
             self.cycles = cycles
             self.d = deployer(node_count=node_count, echo_bin=echo_bin, image=image)
             self.d.wait_nodes()
-            self.s = Sender(self.d.get_addresses()[0])
+            self.s = Sender(self.d.get_addresses()[0], self.d.get_rps_ports()[0])
             self.s.import_balance_to_nathan()
         except Exception as e:
             if self.d is not None:
@@ -24,9 +24,10 @@ class database_size_test:
     def run_test(self):
         self.s.create_contract(x86_64_contract = True, with_response = True)
         self.s.create_contract(x86_64_contract = False, with_response = True)
-        self.uc = utillization_checker([self.d.get_addresses()[1]], ["echonode1"])
+
+        self.uc = utillization_checker([self.d.get_addresses()[1]], [self.d.get_ports()[1]], ["echonode1"])
         self.uc.run_check()
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count * self.cycles)
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.get_rps_ports()[0], self.tx_count * self.cycles)
         self.tc.run_check()
         for i in range(self.cycles):
             self.s.transfer(int(self.tx_count * tx_ratio.transfer))

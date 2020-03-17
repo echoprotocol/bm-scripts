@@ -8,8 +8,9 @@ from .deployer import client
 from .tps_checker import tps_checker
 
 class utillization_checker:
-    def __init__(self, addresses = [], names = []):
+    def __init__(self, addresses = [], ports = [], names = []):
         self.addrs = addresses
+        self.ports = ports
         self.names = names
         self.pids = []
         self.files = []
@@ -20,10 +21,10 @@ class utillization_checker:
 
     def set_pids(self):
         base = "--p2p-endpoint={}:{}"
-        for addr in self.addrs:
+        for i in range(len(self.addrs)):
             for proc in psutil.process_iter():
                 if (proc.name() == "echo_node" and
-                    base.format(addr, 13375) in proc.cmdline()):
+                    base.format(self.addrs[i], self.ports[i]) in proc.cmdline()):
                         self.pids.append(proc.pid)
 
     def set_containers(self):

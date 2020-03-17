@@ -8,14 +8,16 @@ from .node_sender.sender import Sender
 from .utils.utils import tx_ratio
 
 class load_test:
-    def __init__(self, node_count, echo_bin, image, pumba_bin, delay_time, conn_type, tx_count = 10, cycles = 1):
+    def __init__(self, node_count, without_docker, echo_bin, image, pumba_bin, delay_time, conn_type, tx_count = 10, cycles = 1):
         try:
             self.d = None
             self.is_interrupted = False
             self.tx_count = tx_count
             self.cycles = cycles
             self.node_count = node_count
-            self.d = deployer(echo_bin=echo_bin, pumba_bin=pumba_bin, node_count=node_count, image=image, conn_type=conn_type)
+            self.without_docker = without_docker
+            self.d = deployer(echo_bin=echo_bin, pumba_bin=pumba_bin, node_count=node_count, image=image,
+                              conn_type=conn_type, without_docker=without_docker)
             nodes_names = self.get_nodes_names()
             if delay_time != 0:
                 print("Delay in test", delay_time,"ms")
@@ -49,8 +51,9 @@ class load_test:
     def run_test(self):
         senders_list = []
         number_of_node = 0
-        for a in (self.d.get_addresses()):
-            senders_list.append(Sender(a, (number_of_node * self.tx_count * ((self.cycles / 100) + (self.cycles % 1000)) + number_of_node * 5)))
+        for i in range(self.node_count):
+            senders_list.append(Sender(self.d.get_addresses()[i], self.d.get_rps_ports()[i],
+                        (number_of_node * self.tx_count * ((self.cycles / 100) + (self.cycles % 1000)) + number_of_node * 5)))
             number_of_node += 1
 
 
@@ -59,9 +62,10 @@ class load_test:
         senders_list[0].create_contract(x86_64_contract = True, with_response = True)
         senders_list[0].create_contract(x86_64_contract = False, with_response = True)
 
-        self.uc = utillization_checker([self.d.get_addresses()[1]], ["echonode1"])
-        self.uc.run_check()
-        self.tc = tps_checker(self.d.get_addresses()[0], self.tx_count * self.cycles * self.node_count)
+        if self.without_docker == False:
+            self.uc = utillization_checker([self.d.get_addresses()[1]], [self.d.get_ports()[1]], ["echonode1"])
+            self.uc.run_check()
+        self.tc = tps_checker(self.d.get_addresses()[0], self.d.get_rps_ports()[0], self.tx_count * self.cycles * self.node_count)
         self.tc.run_check()
 
         self.threads_list = []
@@ -74,7 +78,8 @@ class load_test:
             t.start()
 
         self.tc.wait_check()
-        self.uc.stop_check()
+        if self.without_docker == False:
+            self.uc.stop_check()
         self.d.kill_pumba()
         for t in self.threads_list:
             t.join()
@@ -84,4 +89,5 @@ class load_test:
         for t in self.threads_list:
             t.join()
         self.tc.interrupt_checker()
-        self.uc.interrupt_checker()
+        if self.without_docker == False:
+            self.uc.interrupt_checker()

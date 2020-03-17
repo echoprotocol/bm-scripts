@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import os
+import subprocess
 import docker
 import tarfile
 import socket
@@ -10,7 +11,11 @@ import tempfile
 import subprocess
 import sys
 
+from pathlib import Path
+
 from ..utils.files_path import RESOURCES_DIR
+
+DETACHED_PROCESS = 0x00000008
 
 COMMITTEE_COUNT=20
 PRIVATE_KEYS = ["5KBPWjxKz8Ym7CLatFMa5XtfbvTzEt7vMugkRNk7go9dBQfJLYt",
@@ -58,7 +63,7 @@ client = docker.from_env()
 
 class deployer:
     def __init__(self, echo_bin="", pumba_bin="", node_count = 2, image = "",\
-                 conn_type = connect_type.all_to_all):
+                 conn_type = connect_type.all_to_all, without_docker = False):
         self.delayed_nodes=[]
         self.node_names=[]
         self.inverse_delayed_nodes=[]
@@ -69,33 +74,54 @@ class deployer:
 
         self.pumba_bin = pumba_bin
         self.echo_bin = echo_bin
-        self.echo_data_dir = "./tmp/echorand_test_datadir"
+        self.echo_data_dir = "./tmp2/echorand_test_datadir"
         self.image = image
         self.pumba_started = False
 
-        self.port = 13375
-        self.rpc_port = 8090
+        self.ports = [13375]
+        self.rpc_ports = [8090]
         self.node_count = node_count
         self.conn_type = conn_type
 
+        self.without_docker = without_docker
+
         self.set_node_names()
         self.stop_containers() # stop before start if not stopped in previous run
-        self.start_contrainers()
+        if without_docker == False:
+            self.start_contrainers()
         self.set_node_addresses()
+        self.set_node_ports()
         self.set_seed_node_args()
         self.set_account_info_args()
-        self.copy_data()
+        if without_docker == False:
+            self.copy_data()
         self.set_launch_args()
-        self.start_nodes()
+        if without_docker == True:
+            self.start_nodes_without_container()
+        else:
+            self.start_nodes_with_container()
 
     def set_node_names(self):
         for i in range(self.node_count):
             self.node_names.append("echonode{}".format(i))
 
     def set_node_addresses(self):
-        for name in self.node_names:
-            container = client.containers.get(name)
-            self.addresses.append(container.attrs['NetworkSettings']['IPAddress'])
+        if self.without_docker == True:
+            for i in range(self.node_count):
+                self.addresses.append("127.0.0.1")
+        else:
+            for name in self.node_names:
+                container = client.containers.get(name)
+                self.addresses.append(container.attrs['NetworkSettings']['IPAddress'])
+
+    def set_node_ports(self):
+        for i in range(1, self.node_count):
+            if self.without_docker == True:
+                self.ports.append(self.ports[0]+i)
+                self.rpc_ports.append(self.rpc_ports[0]+i)
+            else:
+                self.ports.append(self.ports[0])
+                self.rpc_ports.append(self.rpc_ports[0])
 
     def set_seed_node_args(self):
         if (self.conn_type == connect_type.serial):
@@ -129,31 +155,33 @@ class deployer:
     def set_launch_args(self):
         base = ""
         if (self.conn_type == connect_type.all_to_all):
-            base = "HEAPPROFILE=heapprof ./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand"
+            base = "HEAPPROFILE=tmp2/gperf_node{n}/heapprof ./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand"
         else:
-            base = "HEAPPROFILE=heapprof ./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand --config-seeds-only"
+            base = "HEAPPROFILE=tmp2/gperf_node{n}/heapprof ./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand --config-seeds-only"
         for i in range(self.node_count):
-            rpc="--rpc-endpoint={}:{}".format(self.addresses[i], self.rpc_port)
-            p2p="--p2p-endpoint={}:{} {}".format(self.addresses[i], self.port, self.seed_node_args[i])
-            self.launch_strs.append(base.format(datadir=self.echo_data_dir, dir=self.node_names[i], dnum=i, p2p=p2p, rpc=rpc, acc_infos=self.account_info_args[i]))
+            rpc="--rpc-endpoint={}:{}".format(self.addresses[i], self.rpc_ports[i])
+            p2p="--p2p-endpoint={}:{} {}".format(self.addresses[i], self.ports[i], self.seed_node_args[i])
+            self.launch_strs.append(base.format(n=i, datadir=self.echo_data_dir, dir=self.node_names[i], dnum=i, p2p=p2p, rpc=rpc, acc_infos=self.account_info_args[i]))
+
+            Path("tmp2/gperf_node{}".format(i)).mkdir(parents=True, exist_ok=True)
 
     def form_serial_connection(self):
         self.seed_node_args.append("")
         for i in range(1, self.node_count):
-            self.seed_node_args.append("--seed-node={}:{}".format(self.addresses[i-1], self.port))
+            self.seed_node_args.append("--seed-node={}:{}".format(self.addresses[i-1], self.ports[i-1]))
 
     def form_circlular_connection(self):
         self.seed_node_args.append("")
         for i in range(1, self.node_count):
-            self.seed_node_args.append("--seed-node={}:{}".format(self.addresses[i-1], self.port))
-        self.seed_node_args[0]="--seed-node={}:{}".format(self.addresses[self.node_count-1], self.port)
+            self.seed_node_args.append("--seed-node={}:{}".format(self.addresses[i-1], self.ports[i-1]))
+        self.seed_node_args[0]="--seed-node={}:{}".format(self.addresses[self.node_count-1], self.ports[self.node_count-1])
 
     def form_all_to_all_connection(self):
         for i in range(0, self.node_count):
             seed_args = ""
             for j in range(0, self.node_count):
                 if (i != j):
-                    seed_args = seed_args + ("--seed-node={}:{} ".format(self.addresses[j], self.port))
+                    seed_args = seed_args + ("--seed-node={}:{} ".format(self.addresses[j], self.ports[j]))
             self.seed_node_args.append(seed_args)
 
     def copy_to(self, dst, *args):
@@ -168,16 +196,27 @@ class deployer:
             self.copy_to("{}:/".format(name), RESOURCES_DIR+"/access.json", RESOURCES_DIR+"/private_genesis.json")
             self.copy_to("{}:/echo_node".format(name), self.echo_bin)
 
-    def start_nodes(self):
+    def start_nodes_with_container(self):
         container = client.containers.get(self.node_names[0])
         cmd = "/bin/sh -c '{}'".format(self.launch_strs[0])
         container.exec_run(cmd, detach=True)
         for i in range(1, self.node_count):
             container = client.containers.get(self.node_names[i])
             cmd = "/bin/sh -c '{}'".format(self.launch_strs[i])
-            while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(self.addresses[i-1])):
+            while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(i-1)):
                 time.sleep(1)
             container.exec_run(cmd, detach=True)
+
+    def start_nodes_without_container(self):
+        cmd = self.launch_strs[0]
+        log = open("tmp2/{}.txt".format(self.node_names[0]), "a")
+        subprocess.Popen(cmd, shell=True, preexec_fn=os.setsid, stdout=log, stderr=log)
+        for i in range(1, self.node_count):
+            cmd = self.launch_strs[i]
+            while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(i-1)):
+                time.sleep(1)
+            log = open("tmp2/{}.txt".format(self.node_names[i]), "a")
+            subprocess.Popen(cmd, shell=True, preexec_fn=os.setsid, stdout=log, stderr=log)
 
     def start_contrainers(self):
         for name in self.node_names:
@@ -193,14 +232,20 @@ class deployer:
             except:
                 pass
 
-    def node_is_not_started(self, addr): # return true if node is not started yet
+    def node_is_not_started(self, n_node): # return true if node is not started yet
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex((addr, self.rpc_port))
+        result = sock.connect_ex((self.addresses[n_node], self.ports[n_node]))
         sock.close()
         return result
 
     def get_addresses(self):
         return self.addresses
+
+    def get_ports(self):
+        return self.ports
+
+    def get_rps_ports(self):
+        return self.rpc_ports
 
     def get_node_names(self):
         return self.node_names
@@ -212,8 +257,8 @@ class deployer:
             time=time, jitter=jitter, containers = nodes), shell=True, preexec_fn=os.setsid)
 
     def wait_nodes(self):
-        for addr in self.addresses:
-            while self.node_is_not_started(addr):
+        for i in range(self.node_count):
+            while self.node_is_not_started(i):
                 time.sleep(1)
         time.sleep(10) # unexplored behavior: without sleep node can crash during running
         print("Node deploying - Done")
