@@ -2,11 +2,17 @@
 
 import argparse
 from scripts.node_deployer.tps_checker import tps_checker
-from threading import Event
-exit = Event()
-
+import signal
 
 def main():
+    t = None
+    def signal_handler(sig, frame):
+        print("\nCaught SIGINT:")
+        if t is not None:
+            t.interrupt_checker()
+        raise SystemExit("Exited from Ctrl-C handler")
+    signal.signal(signal.SIGINT, signal_handler)
+
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     parser.add_argument('-txs', '--txs_count', dest='txs_count', action='store',
         type=int, help="Number of transactions", default=1000)
@@ -16,22 +22,15 @@ def main():
         type=int, help="Rpc port for connecting", default=8090)
     args = parser.parse_args()
 
-    def quit(signo, _frame):
-        print("Interrupted by %d, shutting down" % signo)
-        exit.set()
-
     t = tps_checker(args.address, args.port, args.txs_count)
-
-    import signal
-    def signal_handler(sig, frame):
-        print("\nCaught SIGINT, waiting closing:")
-        t.interrupt_checker()
-
-    signal.signal(signal.SIGINT, signal_handler)
-
     t.run_check()
     t.wait_check()
     print("Stopped")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit as e:
+        print(e)
+    except Exception as e:
+        logging.error(traceback.format_exc())

@@ -33,6 +33,7 @@ class Sender(Base):
         return ceil(timegm(time.strptime((iso + "UTC"), timeformat)))
 
     def import_balance_to_nathan(self):
+        print("Started import balance")
         nathan = self.get_account(self.echo_nathan, self.database_api_identifier)
         nathan_public_key = self.get_public_key(nathan)
         operation = self.echo_ops.get_balance_claim_operation(self.echo, self.echo_nathan_id, nathan_public_key,

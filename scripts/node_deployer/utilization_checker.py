@@ -48,6 +48,8 @@ class utilization_checker:
 
     def collect_stats(self):
         base = "du -sb /tmp/echorand_test_datadir/{}/blockchain"
+        names = [self.names[i] for i in self.nums]
+        print("Collection statistics for", names)
         while (self.is_running):
             for i, pid in zip(self.nums, self.pids):
                 block_number = tps_checker.get_block_number()
