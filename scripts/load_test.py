@@ -50,11 +50,8 @@ class load_test:
 
     def run_test(self):
         senders_list = []
-        number_of_node = 0
         for i in range(self.node_count):
-            senders_list.append(Sender(self.d.get_addresses()[i], self.d.get_rps_ports()[i],
-                        (number_of_node * self.tx_count * ((self.cycles / 100) + (self.cycles % 1000)) + number_of_node * 5)))
-            number_of_node += 1
+            senders_list.append(Sender(self.d.get_addresses()[i], self.d.get_rps_ports()[i], (i * self.tx_count * self.cycles + i)))
 
 
         senders_list[0].import_balance_to_nathan()
