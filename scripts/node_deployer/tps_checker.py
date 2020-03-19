@@ -44,7 +44,7 @@ class tps_checker:
     def collect_tps(self):
         try:
             response = ""
-            while self.collected_tx_number != self.sent_tx_number and self.is_interrupted == False:
+            while self.collected_tx_number < self.sent_tx_number and self.is_interrupted == False:
                 receive = self.ws.recv()
                 if "method" in receive:
                     response = json.loads(receive)
@@ -67,7 +67,7 @@ class tps_checker:
                     self.tps = self.collected_tx_number
                 else:
                     self.tps = self.collected_tx_number / ((end - start).seconds)
-        except Exception:
+        except (json.decoder.JSONDecodeError, OSError) as e:
             if self.is_interrupted == False:
                 print("Caught exception in tps colletor thread:")
                 print("-------------------------------------------")

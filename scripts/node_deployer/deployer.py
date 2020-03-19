@@ -213,36 +213,50 @@ class deployer:
 
     def copy_data(self):
         for name in self.node_names:
+            print("Prepare data for", name)
             self.copy_to("{}:/".format(name), RESOURCES_DIR+"/access.json", RESOURCES_DIR+"/private_genesis.json")
             self.copy_to("{}:/echo_node".format(name), self.echo_bin)
+        print("Preparing data - Done")
+        print("")
 
     def start_nodes(self):
+        f=open("cmd.log","w+")
         container = client.containers.get(self.node_names[0])
         cmd = "/bin/sh -c '{}'".format(self.launch_strs[0])
-        #print("CMD : ", cmd)
+        f.write("Started echonode0 with next cmd:\n")
+        f.write(cmd+'\n\n')
+        print("Starting echo_node in", self.node_names[0],"container")
         container.exec_run(cmd, detach=True)
         for i in range(1, self.node_count):
             container = client.containers.get(self.node_names[i])
             cmd = "/bin/sh -c '{}'".format(self.launch_strs[i])
             while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(self.addresses[i-1])):
                 time.sleep(1)
+            print("Starting echo_node in", self.node_names[i],"container")
             container.exec_run(cmd, detach=True)
-            #print("CMD : ", cmd)
+            f.write("Started echonode{} with next cmd:\n".format(i))
+            f.write(cmd+'\n\n')
+        f.close()
+        print("")
 
     def start_contrainers(self):
         for i in range(self.node_count):
-            container = client.containers.run(self.image,\
-                detach=True,name=self.node_names[i],remove=True,tty=True,ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
-                                                                                '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])},ulimits=[docker.types.Ulimit(name='core', soft=-1, hard=-1)])
+            container = client.containers.run(self.image,detach=True,name=self.node_names[i],remove=True,tty=True,
+                 ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
+                 '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])},ulimits=[docker.types.Ulimit(name='core', soft=-1, hard=-1)])
+            print("Started", self.node_names[i], "container")
+        print("")
 
     def stop_containers(self):
         for name in self.node_names:
             try:
                 container = client.containers.get(name)
                 container.stop()
+                print("Stopped", name, "container")
                 container.remove()
-            except:
+            except docker.errors.APIError: 
                 pass
+        print("")
 
     def node_is_not_started(self, addr, port): # return true if node is not started yet
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -264,10 +278,13 @@ class deployer:
 
     def wait_nodes(self):
         for i in range(self.node_count):
+            print("Waiting ws server on", self.node_names[i],"-", end=" ")
             while self.node_is_not_started(self.addresses[i], self.rpc_ports[i]):
                 time.sleep(1)
-        time.sleep(10) # unexplored behavior: without sleep node can crash during running
+            print("Done")
+        #time.sleep(10) # unexplored behavior: without sleep node can crash during running
         print("Node deploying - Done")
+        print("")
 
     def kill_pumba(self):
         if self.pumba_started == True:
@@ -288,6 +305,9 @@ class deployer:
         return n
 
     def remote_deploying(self):
+        if not self.host_addresses:
+            if self.start_node != 0:
+                raise RuntimeError("If host info is empty, then server number on which node will be deployed should be zero")
         node_count = self.get_all_node_count()
         self.set_node_names()
         self.set_ports()
