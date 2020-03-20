@@ -230,7 +230,7 @@ class deployer:
         for i in range(1, self.node_count):
             container = client.containers.get(self.node_names[i])
             cmd = "/bin/sh -c '{}'".format(self.launch_strs[i])
-            while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(self.addresses[i-1])):
+            while (self.conn_type != connect_type.all_to_all and self.node_is_not_started(self.addresses[i-1], self.rpc_ports[i-1])):
                 time.sleep(1)
             print("Starting echo_node in", self.node_names[i],"container")
             container.exec_run(cmd, detach=True)
