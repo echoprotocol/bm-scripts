@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import os
+import os, shutil
 import docker
 import tarfile
 import socket
@@ -84,6 +84,7 @@ class deployer:
         self.node_count = node_count
         self.conn_type = conn_type
 
+        self.create_volume_dir()
         if remote == True:
             self.remote_deploying()
         else:
@@ -239,10 +240,13 @@ class deployer:
         f.close()
         print("")
 
-    def start_contrainers(self):
+    def start_containers(self):
+        volumes = { self.vol_folder: {
+            'bind': '/tmp',
+            'mode': 'rw'}}
         for i in range(self.node_count):
             container = client.containers.run(self.image,detach=True,name=self.node_names[i],remove=True,tty=True,
-                 ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
+                 user=os.geteuid(), volumes=volumes, ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
                  '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])},ulimits=[docker.types.Ulimit(name='core', soft=-1, hard=-1)])
             print("Started", self.node_names[i], "container")
         print("")
@@ -312,7 +316,7 @@ class deployer:
         self.set_node_names()
         self.set_ports()
         self.stop_containers() # stop before start if not stopped in previous run
-        self.start_contrainers()
+        self.start_containers()
         self.set_node_addresses()
         self.form_all_to_all_remote_connection()
         self.set_remote_account_info_args()
@@ -324,13 +328,32 @@ class deployer:
         self.set_node_names()
         self.set_ports()
         self.stop_containers() # stop before start if not stopped in previous run
-        self.start_contrainers()
+        self.start_containers()
         self.set_node_addresses()
         self.set_seed_node_args()
         self.set_account_info_args()
         self.copy_data()
         self.set_launch_args()
         self.start_nodes()
+
+    def create_volume_dir(self):
+        dirname=os.path.dirname(__file__)
+        self.vol_folder=dirname+"/../../tmp"
+        if not os.path.exists(self.vol_folder):
+            os.makedirs(self.vol_folder)
+        dirlst=os.listdir(self.vol_folder)
+        if dirlst:
+            print("Clear tmp folder after previous run")
+            for filename in dirlst:
+                file_path = os.path.join(self.vol_folder, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))
+            print("Clearing - Done")
 
 #def test():
 #    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
