@@ -7,8 +7,19 @@ import traceback
 import logging
 import signal
 import sys
+import psutil
+import os
+
+def kill_sender():
+    my_pid = os.getpid()
+    for proc in psutil.process_iter():
+        if (proc.name() == "start_sender.py" and proc.pid != my_pid):
+            print("Killing previous sender process")
+            os.kill(proc.pid, signal.SIGTERM)
 
 def main():
+    kill_sender()
+
     def signal_handler(sig, frame):
         print("\nCaught SIGINT:")
         raise SystemExit("Exited from Ctrl-C handler")

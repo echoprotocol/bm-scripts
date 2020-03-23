@@ -8,14 +8,14 @@ from .node_sender.sender import Sender
 from .utils.utils import tx_ratio
 
 class load_test:
-    def __init__(self, node_count, echo_bin, image, pumba_bin, delay_time, conn_type, tx_count = 10, cycles = 1):
+    def __init__(self, node_count, echo_bin, image, pumba_bin, delay_time, conn_type, comm_count, tx_count = 10, cycles = 1):
         try:
             self.d = None
             self.is_interrupted = False
             self.tx_count = tx_count
             self.cycles = cycles
             self.node_count = node_count
-            self.d = deployer(echo_bin=echo_bin, pumba_bin=pumba_bin, node_count=node_count, image=image, conn_type=conn_type)
+            self.d = deployer(echo_bin=echo_bin, pumba_bin=pumba_bin, node_count=node_count, image=image, conn_type=conn_type, committee_count = comm_count)
             nodes_names = self.get_nodes_names()
             if delay_time != 0:
                 print("Delay in test", delay_time,"ms")

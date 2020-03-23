@@ -15,6 +15,8 @@ def set_options(parser):
         type=str, help="Name of image for docker containers", default="", required=True)
     parser.add_argument('-n', '--node_count', action='store', dest='node_count',
         type=int, help="Node count for deploying", default=2)
+    parser.add_argument('-cc', '--committee_count', action='store', dest='committee_count',
+        type=int, help="Committee count", default=20)
     parser.add_argument('-sn', '--server_num', dest='server_num', action='store',
         type=int, help="Number of server on which deployer will be started", required=True)
     parser.add_argument('-hi', '--hosts_info', dest='hosts_info', action='store',
@@ -32,7 +34,7 @@ def main():
     args = parser.parse_args()
     hosts_info=json.loads(args.hosts_info)
     d = deployer(node_count=args.node_count, echo_bin=args.echo_bin, pumba_bin="",
-                image=args.image, start_node=args.server_num, host_addresses=hosts_info, remote=True)
+                image=args.image, start_node=args.server_num, host_addresses=hosts_info, remote=True, committee_count=args.committee_count)
     d.wait_nodes()
     if args.server_num == 0:
         s=Sender(d.addresses[0], d.rpc_ports[0])

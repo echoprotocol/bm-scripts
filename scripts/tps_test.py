@@ -6,7 +6,7 @@ from .node_sender.sender import Sender
 
 class tps_test:
     def __init__(self, node_count, echo_bin, pumba_bin, image, tx_count, delay = 0,
-                 delayed_lst = [], tx_case = 0, conn_type = connect_type.serial):
+                 delayed_lst = [], tx_case = 0, conn_type = connect_type.serial, comm_count = 20):
         try:
             self.tc = None
             self.uc = None
@@ -14,7 +14,7 @@ class tps_test:
             self.tx_count = tx_count
             self.delay = delay
             self.tx_case = tx_case
-            self.d = deployer(node_count=node_count, echo_bin=echo_bin, pumba_bin=pumba_bin, image=image, conn_type = conn_type)
+            self.d = deployer(node_count=node_count, echo_bin=echo_bin, pumba_bin=pumba_bin, image=image, conn_type = conn_type, committee_count = comm_count)
             if self.delay != 0:
                 print("Delay in test", delay,"ms")
                 if not delayed_lst:
