@@ -22,6 +22,8 @@ def set_options(parser):
         type=str, help="Name of image for docker containers", default="", required=True)
     parser.add_argument('-n', '--node_count', action='store', dest='node_count',
         type=int, help="Node count for deploying", default=2)
+    parser.add_argument('-cc', '--committee_count', action='store', dest='committee_count',
+        type=int, help="Committee count", default=20)
     parser.add_argument('-ct', '--conn_type', action='store', dest='conn_type',
         type=str, help="Network configurations. Can be the next: all_to_all, cyclic, serial", default="all_to_all")
     parser.add_argument('-dn', '--delayed_node', dest='delayed_node', nargs='+',
@@ -79,11 +81,12 @@ def select_suite(args):
     if args.suite == "tps":
        if args.pumba_bin != "":
             return tps_test(args.node_count, args.echo_bin, args.pumba_bin, args.image,
-               args.txs_count, args.time, create_delayed_node_lst(args), get_transaction_type(args.tx_type), get_connection_type(args.conn_type))
+               args.txs_count, args.time, create_delayed_node_lst(args),
+               get_transaction_type(args.tx_type), get_connection_type(args.conn_type), args.committee_count)
        else:
            raise Exception("pumba_bin argmunet should be specified!")
     elif args.suite == "database":
-       return database_size_test(args.node_count, args.echo_bin, args.image, args.txs_count, cycles=args.cycles)
+       return database_size_test(args.node_count, args.echo_bin, args.image, args.committee_count, args.txs_count, cycles=args.cycles)
     elif args.suite == "propagation":
        if args.pumba_bin != "":
            return propagation_test(args.node_count, args.echo_bin,
@@ -92,7 +95,7 @@ def select_suite(args):
            raise Exception("pumba_bin argmunet should be specified!")
     elif args.suite == "load":
         return load_test(args.node_count, args.echo_bin, args.image, args.pumba_bin, args.time,
-            get_connection_type(args.conn_type), tx_count=args.txs_count, cycles=args.cycles)
+            get_connection_type(args.conn_type), args.committee_count, tx_count=args.txs_count, cycles=args.cycles)
 
 def cleanup_resources(test, clr):
     if test is not None:

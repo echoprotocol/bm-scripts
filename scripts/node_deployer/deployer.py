@@ -10,33 +10,13 @@ import tempfile
 import subprocess
 import sys
 import socket
-
+from echopy.echobase.account import BrainKey
 from ..utils.files_path import RESOURCES_DIR
+from ..utils.genesis_template import create_init_account, get_genesis_string
 
 COMMITTEE_COUNT=20
-PRIVATE_KEYS = ["5KBPWjxKz8Ym7CLatFMa5XtfbvTzEt7vMugkRNk7go9dBQfJLYt",
-                "5JdPusf39CuwYWnvzJX7JnBtUdkqzWqfVE9WBfkqSye8BC5nyzh",
-                "5Hvvh3Sj6GRMCzeAk965QhxurYzpAcLVALvBCciW73Q9KeTwK8e",
-                "5KUphcsPV2s7sGCksLZ9u9GSUGezJ83E4w6LVxoCeMEdAuFAdRw",
-                "5KAPbigUUgog3DB8BfY3jJbrsknzAWjf4gzvbpZrvoguLjcfGmr",
-                "5JLpiU7J5WNUHimq8samGBupbc3MdRg63ufyEcarzQKyyn4iiEm",
-                "5JGvwKpj3zZbZKxWpMNT7qVNi489Peq58nQhFdUzZUqPcbLnpCs",
-                "5JB3K8TgAowtxV6HBsLqrKkkuxLW3DV94uSXgPZhapNuWi9zoEB",
-                "5KZq5vzfgphdTv9uAEmWzMu6GuzZqkNicBHGRhCxPSnTCeArTbf",
-                "5Jz4sZPSnG4D7yYrW5kvXpvJkXqH16F9A8DFeume4EiJomN6oYL",
-                "5KXp7WBiPPFE44QSBgNzEqjqgamkTXn5tT4cCctoFb4zVL3HFpn",
-                "5JkoodR3pMMXLRcMhrqSMNgE5mrhVemPVqvGaigRNskSf7e9T11",
-                "5HzGZZSXJmTkzf5FGoyaqjR1nsBTk8vEskjHkxUiwt8DaMXQq91",
-                "5KfWnaGesmyXVuzMjidr1UNLaoVxmTQpeWJUATXogTizckGmg4j",
-                "5HqDbVtVM8qZXr2wEyxeCQHHCr55bRDFhSPitBiYk5gdFgBjVbu",
-                "5JmoKXdyVERZXgMpXm1FyzkFWRmnh678v6GZNFQGZNecxgkQWnw",
-                "5JAKxW1ZkFiCTJUjgBnhJZFWyGYD5e7uoiCDZ1UZQffSjK5J9Zf",
-                "5HtswsUqHURnTGTpuqTb9gFAASkKHR48CLRThLVZ8PKqiQ8P9aK",
-                "5KGyuPZoApBbQSbSegZXKp5D4ajqDmoQx1jumt6UZXpVfV56oRB",
-                "5JjHQ1GqTbqVZLdTB3QRqcUWA6LezqA65iPJbq5craE6MRc4u9K"
-               ]
-
 NATHAN_PRIV="5JjHQ1GqTbqVZLdTB3QRqcUWA6LezqA65iPJbq5craE6MRc4u9K"
+NATHAN_PUB="ECHO5NaRTkq4uBAVGrZkD3jcTEdUxhxxJLU7hvt3p1zJyytc"
 
 def simple_tar(path):
     f = tempfile.NamedTemporaryFile()
@@ -59,7 +39,7 @@ client = docker.from_env()
 
 class deployer:
     def __init__(self, echo_bin="", pumba_bin="", node_count=2, image="",\
-                 conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args=""):
+                 conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args="", committee_count=20):
         self.delayed_nodes=[]
         self.node_names=[]
         self.inverse_delayed_nodes=[]
@@ -69,8 +49,11 @@ class deployer:
         self.seed_node_args=[]
         self.account_info_args=[]
         self.launch_strs=[]
+        self.private_keys=[]
+        self.public_keys=[]
+        self.comm_names=[]
         self.host_addresses=host_addresses
-        self.start_node = start_node
+        self.start_node=start_node
 
         self.pumba_bin = pumba_bin
         self.echo_bin = echo_bin
@@ -84,6 +67,9 @@ class deployer:
         self.node_count = node_count
         self.conn_type = conn_type
 
+        self.set_committee_count(committee_count)
+        self.set_accs_info()
+        self.create_genesis()
         self.create_volume_dir()
         if remote == True:
             self.remote_deploying()
@@ -115,22 +101,22 @@ class deployer:
     def set_account_info_args(self):
         account_str = "--account-info \[\\\"1.2.{}\\\",\\\"{}\\\"\] "
         extra_str = "--plugins=registration --registrar-account=\\\"1.2.{}\\\" --api-access=./access.json"
-        if COMMITTEE_COUNT > self.node_count:
-            committee_per_node = int(COMMITTEE_COUNT / self.node_count)
+        if self.committee_count > self.node_count:
+            committee_per_node = int(self.committee_count / self.node_count)
             for i in range(self.node_count-1):
                 account_args = ""
                 for j in range(i*committee_per_node, (i+1)*committee_per_node):
-                    account_args = account_args + account_str.format(j+6,PRIVATE_KEYS[j])
+                    account_args = account_args + account_str.format(j+6,self.private_keys[j])
                 self.account_info_args.append(account_args + extra_str.format(i*committee_per_node + 6))
             account_args = ""
-            for j in range((self.node_count-1)*committee_per_node, COMMITTEE_COUNT):
-                account_args = account_args + account_str.format(j+6,PRIVATE_KEYS[j])
+            for j in range((self.node_count-1)*committee_per_node, self.committee_count):
+                account_args = account_args + account_str.format(j+6,self.private_keys[j])
             self.account_info_args.append(account_args + extra_str.format((self.node_count-1)*committee_per_node + 6))
         else:
-            for i in range(COMMITTEE_COUNT):
-                account_args = account_str.format(i+6,PRIVATE_KEYS[i])
+            for i in range(self.committee_count):
+                account_args = account_str.format(i+6,self.private_keys[i])
                 self.account_info_args.append(account_args + extra_str.format(i+6))
-            for i in range(COMMITTEE_COUNT, self.node_count):
+            for i in range(self.committee_count, self.node_count):
                 self.account_info_args.append("--plugins=registration --api-access=./access.json")
 
     def set_remote_account_info_args(self):
@@ -139,8 +125,8 @@ class deployer:
         #extra_str = "--api-access=./access.json"
 
         servercount = len(self.host_addresses) + 1 # plus one due to my current host also should be counted
-        accs_per_server = int(COMMITTEE_COUNT / servercount)
-        accs_on_first_server = accs_per_server + COMMITTEE_COUNT % servercount
+        accs_per_server = int(self.committee_count / servercount)
+        accs_on_first_server = accs_per_server + self.committee_count % servercount
         start_pos = 0
         if self.start_node > 0:
             start_pos = accs_on_first_server+(self.start_node - 1)*accs_per_server 
@@ -148,7 +134,7 @@ class deployer:
             accs_per_server = accs_on_first_server
         if accs_per_server < self.node_count:
             for i in range(accs_per_server):
-                account_args = "" + account_str.format(i+start_pos+6,PRIVATE_KEYS[i+start_pos]) + extra_str.format(i+start_pos+6)
+                account_args = "" + account_str.format(i+start_pos+6,self.private_keys[i+start_pos]) + extra_str.format(i+start_pos+6)
                 self.account_info_args.append(account_args)
             for i in range(accs_per_server, self.node_count):
                 #account_args = "" + extra_str.format(i+start_pos+6)
@@ -159,23 +145,39 @@ class deployer:
             for i in range(self.node_count-1):
                 account_args = ""
                 for j in range(i*accs_per_node, (i+1)*accs_per_node):
-                    account_args = account_args + account_str.format(j+start_pos+6,PRIVATE_KEYS[j+start_pos])
+                    account_args = account_args + account_str.format(j+start_pos+6,self.private_keys[j+start_pos])
                 self.account_info_args.append(account_args + extra_str.format(i*accs_per_node+ start_pos + 6))
             account_args = ""
             for j in range((self.node_count-1)*accs_per_node, accs_per_server):
-                account_args = account_args + account_str.format(j+start_pos+6,PRIVATE_KEYS[j+start_pos])
+                account_args = account_args + account_str.format(j+start_pos+6,self.private_keys[j+start_pos])
             self.account_info_args.append(account_args + extra_str.format((self.node_count-1)*accs_per_node + start_pos+ 6))
             
     def set_launch_args(self):
         base = ""
         if (self.conn_type == connect_type.all_to_all):
-            base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand"
+            base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json genesis.json {acc_infos} --start-echorand"
         else:
-            base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json private_genesis.json {acc_infos} --start-echorand --config-seeds-only"
+            base = "./echo_node --data-dir={datadir}/{dir} {p2p} {rpc} --genesis-json genesis.json {acc_infos} --start-echorand --config-seeds-only"
         for i in range(self.node_count):
             rpc="--rpc-endpoint={}:{}".format(self.addresses[i], self.rpc_ports[i])
             p2p="--p2p-endpoint={}:{} {}".format(self.addresses[i], self.ports[i], self.seed_node_args[i])
             self.launch_strs.append(base.format(datadir=self.echo_data_dir, dir=self.node_names[i], dnum=i, p2p=p2p, rpc=rpc, acc_infos=self.account_info_args[i]))
+
+    def set_committee_count(self, count):
+        self.committee_count = 20
+        if count > self.committee_count:
+            self.committee_count = count
+
+    def set_accs_info(self):
+        name="init{}" 
+        for i in range(self.committee_count-1):
+            key = BrainKey(brain_key=name.format(i))
+            self.private_keys.append(key.get_private_key_base58())
+            self.public_keys.append(key.get_public_key_base58())
+            self.comm_names.append(name.format(i))
+        self.private_keys.append(NATHAN_PRIV)
+        self.public_keys.append(NATHAN_PUB)
+        self.comm_names.append("nathan")
 
     def form_serial_connection(self):
         self.seed_node_args.append("")
@@ -215,7 +217,7 @@ class deployer:
     def copy_data(self):
         for name in self.node_names:
             print("Prepare data for", name)
-            self.copy_to("{}:/".format(name), RESOURCES_DIR+"/access.json", RESOURCES_DIR+"/private_genesis.json")
+            self.copy_to("{}:/".format(name), RESOURCES_DIR+"/access.json", RESOURCES_DIR+"/genesis.json")
             self.copy_to("{}:/echo_node".format(name), self.echo_bin)
         print("Preparing data - Done")
         print("")
@@ -355,14 +357,26 @@ class deployer:
                     print('Failed to delete %s. Reason: %s' % (file_path, e))
             print("Clearing - Done")
 
+    def create_genesis(self):
+        acc_lst=[]
+        for i in range(self.committee_count):
+            acc_lst.append(create_init_account(self.comm_names[i], 
+                self.public_keys[i], self.public_keys[i]))
+        genesis_str=get_genesis_string(acc_lst)
+        dirname=os.path.dirname(__file__)
+        fname=dirname+"/../resources/genesis.json"
+        with open(fname, "w") as text_file:
+            text_file.write(genesis_str)
+
+
 #def test():
-#    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
+#    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay", committee_count=5)
 #    nodes = "echonode0 echonode1"
 #    d.run_pumba(nodes, 500, 10)
 #    time.sleep(30)
 #    d.kill_pumba()
 #    #d.stop_containers()
-
+#test()
     #def __init__(self, echo_bin="", pumba_bin="", node_count=2, image="",\
     #             conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args=""):
 #def test():

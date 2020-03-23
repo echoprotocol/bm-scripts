@@ -2,21 +2,18 @@ import time
 from datetime import timezone, datetime
 from math import ceil
 from calendar import timegm
-
 from random import randrange
 
 from .base import Base
-
 from ..node_deployer.deployer import NATHAN_PRIV
-
 initial_balance = 1000000000000000
 
 class Sender(Base):
     def __init__(self, node_url, port, call_id = 0):
         super().__init__(node_url, port)
         self.call_id = call_id
-        self.echo_nathan = "nathan"
-        self.echo_nathan_id = "1.2.25"
+        self.nathan = self.get_account("nathan", self.database_api_identifier)
+        self.echo_nathan_id = self.nathan["id"]
         self.nathan_priv_key = NATHAN_PRIV
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
@@ -34,8 +31,7 @@ class Sender(Base):
 
     def import_balance_to_nathan(self):
         print("Started import balance")
-        nathan = self.get_account(self.echo_nathan, self.database_api_identifier)
-        nathan_public_key = self.get_public_key(nathan)
+        nathan_public_key = self.get_public_key(self.nathan)
         operation = self.echo_ops.get_balance_claim_operation(self.echo, self.echo_nathan_id, nathan_public_key,
                                                                 initial_balance, self.nathan_priv_key)
         collected_operation = self.collect_operations(operation, self.database_api_identifier)

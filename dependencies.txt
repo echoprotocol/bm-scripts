@@ -1,0 +1,4 @@
+sudo apt-get install libffi-dev libssl-dev python-dev python3-dev python3-pip
+pip3 install echopy-lib
+pip3 install docker
+
