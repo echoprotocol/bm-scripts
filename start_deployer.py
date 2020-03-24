@@ -39,6 +39,7 @@ def main():
     if args.server_num == 0:
         s=Sender(d.addresses[0], d.rpc_ports[0])
         s.import_balance_to_nathan()
+        s.balance_distribution()
 
 if __name__ == "__main__":
     try:
