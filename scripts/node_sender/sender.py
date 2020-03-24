@@ -14,6 +14,7 @@ class Sender(Base):
         self.call_id = call_id
         self.nathan = self.get_account("nathan", self.database_api_identifier)
         self.echo_nathan_id = self.nathan["id"]
+        self.account_count=int(self.echo_nathan_id.split('.')[-1]) - 6 # without nathan
         self.nathan_priv_key = NATHAN_PRIV
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
@@ -39,7 +40,29 @@ class Sender(Base):
             echo = self.echo, list_operations = collected_operation, chain_id = self.chain_id, dynamic_global_chain_data = self.dynamic_global_chain_data),
             with_response = True)
 
-        print("Import balance - Done")
+        print("Import balance - Done\n")
+
+    def balance_distribution(self):
+        print("Started balance distribution")
+        id="1.2.{}"
+        op_lst=[]
+        for i in range(self.account_count):
+            op=self.echo_ops.get_transfer_operation(echo = self.echo, from_account_id = self.echo_nathan_id,
+                amount = 10000, to_account_id = id.format(i+6), signer = self.nathan_priv_key)
+            ops = self.collect_operations(op, self.database_api_identifier)
+            op_lst.append(ops[0])
+        now_iso = self.seconds_to_iso(datetime.now(timezone.utc).timestamp())
+        now_seconds = self.iso_to_seconds(now_iso)
+        expiration_time = self.seconds_to_iso(now_seconds + 300 + self.call_id)
+
+        tx = self.echo.create_transaction()
+        for operation in op_lst:
+            tx.add_operation(name = operation[0], props = operation[1])
+            tx.add_signer(operation[2])
+        tx.expiration = expiration_time
+        self.echo_ops.sign(tx, self.chain_id, self.dynamic_global_chain_data)
+        self.echo_ops.broadcast(tx, with_response=True)
+        print("Balance distribution - Done\n")
 
     def send_transaction_list(self, transaction_list, with_response = False):
         sign_transaction_list = []
@@ -53,6 +76,8 @@ class Sender(Base):
                 echo = self.echo, list_operations = tr, expiration = expiration_time, chain_id = self.chain_id, dynamic_global_chain_data = self.dynamic_global_chain_data))
             self.call_id += 1
 
+        self.echo_acc_2 = "1.2.{}".format(6 + int(self.call_id % self.account_count))
+
         k = 0
         for tr in sign_transaction_list:
             k += 1
@@ -60,8 +85,8 @@ class Sender(Base):
             if (k % 1000 == 0):
                 print("Sent ", k, " transactions")
 
-    def transfer(self, transaction_count = 1):
-        transfer_amount = 1
+    def transfer(self, transaction_count = 1, amount = 1):
+        transfer_amount = amount
 
         transaction_list = []
 

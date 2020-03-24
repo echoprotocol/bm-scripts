@@ -15,6 +15,7 @@ class database_size_test:
             self.d.wait_nodes()
             self.s = Sender(self.d.get_addresses()[0], self.d.rpc_ports[0])
             self.s.import_balance_to_nathan()
+            self.s.balance_distribution()
         except Exception as e:
             if self.d is not None:
                 self.d.kill_pumba()

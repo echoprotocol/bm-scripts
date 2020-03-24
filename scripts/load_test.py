@@ -48,7 +48,7 @@ class load_test:
         create_txs= int(self.tx_count * tx_ratio.create_contract / 2)
         call_txs = int(self.tx_count * tx_ratio.call_contract / 2)
         while self.is_interrupted == False and i < self.cycles:
-            sender.transfer(int(self.tx_count * tx_ratio.transfer))
+            sender.transfer(transaction_count=int(self.tx_count * tx_ratio.transfer))
             sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = True)
             sender.call_contract(contract_id = "1.11.0", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = True)
             sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = False)
@@ -67,6 +67,7 @@ class load_test:
 
 
         senders_list[0].import_balance_to_nathan()
+        senders_list[0].balance_distribution()
 
         senders_list[0].create_contract(x86_64_contract = True, with_response = True)
         senders_list[0].create_contract(x86_64_contract = False, with_response = True)
