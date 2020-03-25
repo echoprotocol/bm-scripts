@@ -8,6 +8,7 @@ import logging
 import signal
 import sys
 import psutil
+import json
 import os
 
 def kill_sender():
@@ -26,10 +27,8 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
 
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
-    parser.add_argument('-n', '--node_count', action='store', dest='node_count',
-        type=int, help="Node count for sender connecting to them", default=2)
-    parser.add_argument('-a', '--addresses', action='store', dest='addresses',
-        type=str, help="Address where sender will connect to node", nargs='+')
+    parser.add_argument('-hi', '--hosts_info', dest='hosts_info', action='store',
+        type=str, help="Host info in dictionary formar: {\"ip address\" : number of nodes}", default="", required=True)
     parser.add_argument('-txs', '--txs_count', dest='txs_count', action='store',
         type=int, help="Number of transactions", default=1)
     parser.add_argument('-d', '--delay', dest='delay', action='store',
@@ -39,20 +38,23 @@ def main():
     start_port=8090
     slist=[]
     info_lst=[]
-    for addr,j in zip(args.addresses,range(len(args.addresses))):
-        for i in range(args.node_count):
+    hosts_info=json.loads(args.hosts_info)
+    prev_num_nodes=0
+    for addr, count in hosts_info.items():
+        for i in range(count):
             try:
                 print("Trying connect to",addr,":",start_port+i)
                 sys.stdout.flush()
-                slist.append(Sender(addr, start_port+i, (i+j*args.node_count)*900000))
+                slist.append(Sender(addr, start_port+i, (i+prev_num_nodes)*900000))
                 info_lst.append("Address : {}  Port : {}".format(addr, start_port+i))
                 print("Done")
-                sys.stdout.flush()
+                sys.stdout.flush() 
             except ConnectionRefusedError as e:
                 logging.error(traceback.format_exc())
                 sys.stdout.flush()
                 print(e)
                 sys.stdout.flush()
+        prev_num_nodes=prev_num_nodes+count
 
     if slist:
         while True:
