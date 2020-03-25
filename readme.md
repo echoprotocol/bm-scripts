@@ -14,6 +14,24 @@ There are some suites in test:
 
     * `./main.py -s propagation -n 5 -e ~/echo/build/bin/echo_node -p ~/pumba/.bin/pumba -t 50 -i ubuntu_delay -dn 0 1 2` - command will run propagation suite with 5 nodes, delay time - 50ms, nodes with delay parameter - echonode0, echonode1, echonode2. Name of containers - echonode{n}, where n - number of node started from 0.  
  
-    It is convenient to leave nodes runnning after test done, for debugging purposes, but if you don't need that - use (`-cl` / `--clear`). After execution - all containers will be deleted. You should remember, that deploying containers is not very fast, especially if you don't clear it after previous execution, so you should wait some time.  
+    It is convenient to leave nodes runnning after test done, for debugging purposes, but if you don't need that - use (`-cl` / `--clear`). After execution - all containers will be deleted. You should remember, that deploying containers is not very fast, especially if you don't clear it after previous execution, so you should wait some time. Docker containers have shared folder with host and it is mapped at `bm-scripts/tmp` folder. You can find there logs of nodes. Also you can find cmd.log at `bm-scripts` folder, there will be placed commands with which nodes started.  
 
     Result of utilization checker will be places at results folder and number of pid: results/{pid}. Pid will be printed at the end of test execution. Following columns are present in result file: block number, rss - resident memory size, in top RES column, vms - virtual memory size, in top VIRT column, cpu utilizarion in %, whole blockchain size, x86-64 database size, emv database size. All measures in bytes.
+
+### Deploying on few servers:
+
+There are some files for deploying nodes on different servers and measure some node indicators (tps, utilization):
+
+* start_deployer.py - allow node deploying on servers, have such required arguments like:(`-n` / `--node_count`) - specify number of nodes will be deployed on current server, (`-e` / `--echo_bin`) - specify path to echo_node binary, (`-i` / `--image`) - specify image for docker containers, (`-sn` / `--server_num`) - specify serial number of server to start, started from 0, (`-hi` / `--hosts_info`) - specify information about other hosts, should be in json format (`-hi '{"ip_address":number_of_nodes, "ip_address":number_of_nodes, ...}'`), (`-cc` / `--committee_count`) - specify number of initial accounts in genesis.json file. This file will be generated at `scripts/resources` folder.
+* start_sender.py - needed for sending transactions on nodes. Required argumets: (`-hi` / `--hosts_info`) - specify information about hosts, the same like in start_deployer.py, (`-txs` / `--txs_count`) - specify number of transaction which will be sent on all host, specified in `-hi`, transaction. Transactions are sent sequentially on all nodes, (`-d` / `--delay`) - delay between transfers in seconds.
+* start_tpschecker.py - needed for starting tps checker. Required arguments: (`-txs` / `--txs_count`) - specify how much transactions should be sent to nodes until check will be stopped, (`-a` / `--addres`) - specify ip address for connection, (`-p` / `--port`) - specify port for connection.
+* start_uchecker - start utilization checker for measuring blockchain database in whole, evm and x86-64 databases, also cpu utilization. Required arguments: (`-n` / `--node_count`) - number of nodes will be registering in utilization checker. This checker should be started on server you are interested in, it scanning processes and try to find echo_node process. (`-t` / `--time`) - time in seconds during which utilization checker will work.
+
+    Example (starting 100 nodes on 4 servers, 25 nodes per server):
+    * `./start_deployer.py -n 25 -e ./echo_node -i ubuntu_delay -sn 0 -hi '{"192.168.9.41":25, "192.168.9.42":25, "192.168.9.43":25}' -cc 100`  
+      `./start_deployer.py -n 25 -e ./echo_node -i ubuntu_delay -sn 1 -hi '{"192.168.9.40":25, "192.168.9.42":25, "192.168.9.43":25}' -cc 100`  
+      `./start_deployer.py -n 25 -e ./echo_node -i ubuntu_delay -sn 2 -hi '{"192.168.9.40":25, "192.168.9.41":25, "192.168.9.43":25}' -cc 100`  
+      `./start_deployer.py -n 25 -e ./echo_node -i ubuntu_delay -sn 3 -hi '{"192.168.9.40":25, "192.168.9.41":25, "192.168.9.42":25}' -cc 100`  
+
+    Example (starting sender, which will send 200 tx for every 2 seconds):
+    * `./start_sender.py -hi '{"192.168.9.40":25, "192.168.9.41":25, "192.168.9.42":25, "192.168.9.43":25}' -txs 200 &> send.log &` - it is more convenient to start it in daemon mode.
