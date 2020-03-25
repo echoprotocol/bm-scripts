@@ -340,7 +340,7 @@ class deployer:
 
     def create_volume_dir(self):
         dirname=os.path.dirname(__file__)
-        self.vol_folder="/mnt/data"
+        self.vol_folder=dirname+"/../../tmp"
         if not os.path.exists(self.vol_folder):
             os.makedirs(self.vol_folder)
         dirlst=os.listdir(self.vol_folder)
