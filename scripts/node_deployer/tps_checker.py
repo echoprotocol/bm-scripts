@@ -54,7 +54,7 @@ class tps_checker:
                 else:
                     response_tx = json.loads(receive)
                     self.collected_tx_number =  self.collected_tx_number + int(response_tx['result'])
-                    print("Collected txs -", self.collected_tx_number)
+                    print("Collected txs -", self.collected_tx_number, flush=True)
                     if self.collected_tx_number != 0 and self.start_time == "":
                         self.start_time = response['params'][1][0][0]['time']
 

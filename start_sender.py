@@ -58,19 +58,27 @@ def main():
 
     if slist:
         while True:
-            for s,i in zip(slist, info_lst):
+            i=0
+            num=len(slist)
+            if num == 0:
+                break
+            while i < num:
                 try:
-                    print("Trying sent transactions to:", i)
+                    print("Trying sent transactions to:", info_lst[i])
                     sys.stdout.flush()
-                    s.transfer(args.txs_count)
+                    slist[i].transfer(args.txs_count)
                     print(args.txs_count, "Transactions sent")
                     sys.stdout.flush()
                     time.sleep(args.delay)
+                    i=i+1
                 except Exception as e:
                     print("Caught exception during transaction sending")
                     sys.stdout.flush()
                     logging.error(traceback.format_exc())
                     sys.stdout.flush()
+                    del slist[i]
+                    del info_lst[i]
+                    num=num-1
 
 if __name__ == "__main__":
     try:

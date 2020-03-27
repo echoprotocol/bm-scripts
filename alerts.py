@@ -8,8 +8,10 @@ import psutil
 import signal
 from datetime import datetime
 from scripts.node_deployer.tps_checker import tps_checker
+from sys import maxsize
 
 def send_alert(msg, url):
+    print("Sending alert with msg:", msg, flush=True)
     headers = {'Content-type': 'application/json',
                'Accept': 'text/plain',
                'Content-Encoding': 'utf-8'}
@@ -17,7 +19,7 @@ def send_alert(msg, url):
     now = datetime.now()
     time = now.strftime("%H:%M:%S")
 
-    data = {"username":"here", "text":"{}  {}".format(msg, time)}
+    data = {"username":"here", "text":"<!here> {}  {}".format(msg, time)}
     answer = requests.post(url, data=json.dumps(data), headers=headers)
     print(answer.text)
 
@@ -38,6 +40,7 @@ def check_nodes(num_nodes):
                 missed=False
         if (missed == True):
             missed_list.add(i)
+    print("Nodes checking - Done", flush=True)
     return missed_list
 
 def set_options(parser):
@@ -66,7 +69,9 @@ def main():
     args = parser.parse_args()
 
     missed=set()
-    t=tps_checker(args.address, args.port, 100000)
+    t=tps_checker(args.address, args.port, maxsize)
+    connected_to=args.port - 8090
+    print("Connected to", args.address, args.port)
     t.run_check()
 
     while True:
@@ -75,11 +80,15 @@ def main():
         if (diff):
             send_alert(create_missed_msg(args.server_name, diff), args.url)
             missed=tmp
-         
+
+        if (connected_to in missed):
+            send_alert("[ALERT]: Node where tps checker was connected can not be found, stopping alert system!", args.url)
+            break
+
         t.collected_tx_number=0
         time.sleep(900)
         tps=t.collected_tx_number/900
-        print("Current tps: ", tps)
+        print("Current tps: ", tps, flush=True)
         
         if (tps < 10):
             send_alert("[ALERT]: Low tps {} on server {}".format(tps, args.server_name), args.url)
