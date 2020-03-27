@@ -7,6 +7,16 @@ import json
 import signal
 import traceback
 import logging
+import os
+import getpass
+import psutil
+
+def kill_alert():
+    my_pid = os.getpid()
+    for proc in psutil.process_iter():
+        if (proc.name() == "python3" and "./alerts.py" in proc.cmdline()):
+            print("Killing previous alert process\n")
+            os.kill(proc.pid, signal.SIGTERM)
 
 def set_options(parser):
     parser.add_argument('-e', '--echo_bin', action='store', dest='echo_bin',
@@ -21,9 +31,13 @@ def set_options(parser):
         type=int, help="Number of server on which deployer will be started", required=True)
     parser.add_argument('-hi', '--hosts_info', dest='hosts_info', action='store',
         type=str, help="Host info in dictionary formar: {\"ip address\" : number of nodes}", default="", required=True)
+    parser.add_argument('-u', '--url', dest='url', action='store',
+        type=str, help="Url for alert script", default="")
     parser.add_argument('-cl', '--clear', action='store_true', help="Clear containers after test execution")
 
 def main():
+    kill_alert()
+
     def signal_handler(sig, frame):
         print("\nCaught SIGINT:")
         raise SystemExit("Exited from Ctrl-C handler")
@@ -40,6 +54,10 @@ def main():
         s=Sender(d.addresses[0], d.rpc_ports[0])
         s.import_balance_to_nathan()
         s.balance_distribution()
+
+    if args.url != "":
+        alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} >alerts.log 2>&1 &'
+        os.system(alert_cmd.format(url=args.url, num_nodes=args.node_count, sname=getpass.getuser()))
 
 if __name__ == "__main__":
     try:
