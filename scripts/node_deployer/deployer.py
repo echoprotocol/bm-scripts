@@ -248,11 +248,8 @@ class deployer:
             'mode': 'rw'}}
         for i in range(self.node_count):
             container = client.containers.run(self.image,detach=True,name=self.node_names[i],remove=True,tty=True,
-                 ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
+                 user=os.geteuid(), volumes=volumes, ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
                  '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])},ulimits=[docker.types.Ulimit(name='core', soft=-1, hard=-1)])
-            #container = client.containers.run(self.image,detach=True,name=self.node_names[i],remove=True,tty=True,
-            #     user=os.geteuid(), volumes=volumes, ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
-            #     '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])},ulimits=[docker.types.Ulimit(name='core', soft=-1, hard=-1)])
             print("Started", self.node_names[i], "container")
         print("")
 

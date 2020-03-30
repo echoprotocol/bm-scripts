@@ -35,3 +35,7 @@ There are some files for deploying nodes on different servers and measure some n
 
     Example (starting sender, which will send 200 tx for every 2 seconds):
     * `./start_sender.py -hi '{"192.168.9.40":25, "192.168.9.41":25, "192.168.9.42":25, "192.168.9.43":25}' -txs 200 &> send.log &` - it is more convenient to start it in daemon mode.
+
+### Core dumps
+
+For generating core dumps, you should write core pattern by command: `echo '/tmp/core.%t.%e.%p.%P' | sudo tee /proc/sys/kernel/core_pattern`
