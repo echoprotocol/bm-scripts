@@ -6,6 +6,7 @@ from .node_deployer.utilization_checker import utilization_checker
 from .node_deployer.tps_checker import tps_checker
 from .node_sender.sender import Sender
 from .utils.utils import tx_ratio
+import echopy
 
 class load_test:
     def __init__(self, node_count, echo_bin, image, pumba_bin, delay_time, conn_type, comm_count, tx_count = 10, cycles = 1):
@@ -43,20 +44,24 @@ class load_test:
         self.lock.release()
 
     def send_set(self, sender):
-        i = 0
-        transfer_txs = int(self.tx_count * tx_ratio.transfer)
-        create_txs= int(self.tx_count * tx_ratio.create_contract / 2)
-        call_txs = int(self.tx_count * tx_ratio.call_contract / 2)
-        while self.is_interrupted == False and i < self.cycles:
-            sender.transfer(transaction_count=int(self.tx_count * tx_ratio.transfer))
-            sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = True)
-            sender.call_contract(contract_id = "1.11.0", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = True)
-            sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = False)
-            sender.call_contract(contract_id = "1.11.1", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = False)
-            sleep(2)
-            i += 1
-            self.increase_sent_txs(transfer_txs+create_txs*2+call_txs*2)
-            print("Sent txs", self.sent_txs)
+        try:
+            i = 0
+            transfer_txs = int(self.tx_count * tx_ratio.transfer)
+            create_txs= int(self.tx_count * tx_ratio.create_contract / 2)
+            call_txs = int(self.tx_count * tx_ratio.call_contract / 2)
+            while self.is_interrupted == False and i < self.cycles:
+                sender.transfer(transaction_count=int(self.tx_count * tx_ratio.transfer))
+                sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = True)
+                sender.call_contract(contract_id = "1.11.0", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = True)
+                sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = False)
+                sender.call_contract(contract_id = "1.11.1", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = False)
+                sleep(2)
+                i += 1
+                self.increase_sent_txs(transfer_txs+create_txs*2+call_txs*2)
+                print("Sent txs", self.sent_txs)
+        except echopy.echoapi.ws.exceptions.RPCError as rpc_error: # we should catch txs dupes, it is cost of decreasing transaction expiration time
+            if "skip_transaction_dupe_check" in str(rpc_error):    # there will little part of all transactions
+                pass
 
     def run_test(self):
         senders_list = []

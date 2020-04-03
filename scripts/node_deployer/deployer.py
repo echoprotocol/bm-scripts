@@ -10,6 +10,7 @@ import tempfile
 import subprocess
 import sys
 import socket
+import json
 from echopy.echobase.account import BrainKey
 from ..utils.files_path import RESOURCES_DIR
 from ..utils.genesis_template import create_init_account, get_genesis_string
@@ -178,6 +179,12 @@ class deployer:
         self.private_keys.append(NATHAN_PRIV)
         self.public_keys.append(NATHAN_PUB)
         self.comm_names.append("nathan")
+
+        data=json.dumps(self.private_keys)
+        dirname=os.path.dirname(__file__)
+        file=dirname+"/../resources/private_keys.json"
+        with open(file, 'w') as f:
+            json.dump(data, f) 
 
     def form_serial_connection(self):
         self.seed_node_args.append("")

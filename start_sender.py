@@ -10,6 +10,7 @@ import sys
 import psutil
 import json
 import os
+import echopy
 
 def kill_sender():
     my_pid = os.getpid()
@@ -45,7 +46,7 @@ def main():
             try:
                 print("Trying connect to",addr,":",start_port+i)
                 sys.stdout.flush()
-                slist.append(Sender(addr, start_port+i, (i+prev_num_nodes)*900000))
+                slist.append(Sender(addr, start_port+i, (i+prev_num_nodes)))
                 info_lst.append("Address : {}  Port : {}".format(addr, start_port+i))
                 print("Done")
                 sys.stdout.flush() 
@@ -71,6 +72,12 @@ def main():
                     sys.stdout.flush()
                     time.sleep(args.delay)
                     i=i+1
+                except echopy.echoapi.ws.exceptions.RPCError as rpc_error: # we should catch txs dupes, it is cost of decreasing transaction expiration time
+                    if "skip_transaction_dupe_check" in str(rpc_error):    # there will little part of all transactions
+                        print("Caught txs dupe")
+                        pass
+                    else:
+                        raise Exception(str(rpc_error))
                 except Exception as e:
                     print("Caught exception during transaction sending")
                     sys.stdout.flush()
