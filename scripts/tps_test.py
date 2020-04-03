@@ -22,7 +22,7 @@ class tps_test:
                 else:
                     self.d.run_pumba(self.node_names(delayed_lst), self.delay, 0)
             self.d.wait_nodes()
-            self.s = Sender(self.d.get_addresses()[0], self.d.rpc_ports[0])
+            self.s = Sender(self.d.get_addresses()[0], self.d.rpc_ports[0],self.d.committee_count)
             self.s.import_balance_to_nathan()
             self.s.balance_distribution()
         except Exception as e:

@@ -67,7 +67,7 @@ class load_test:
         senders_list = []
         number_of_node = 0
         for a,p in zip(self.d.get_addresses(), self.d.rpc_ports):
-            senders_list.append(Sender(a,p, (number_of_node * self.tx_count * ((self.cycles / 100) + (self.cycles % 1000)) + number_of_node * 5)))
+            senders_list.append(Sender(a,p,self.d.committee_count, (number_of_node * self.tx_count * ((self.cycles / 100) + (self.cycles % 1000)) + number_of_node * 5)))
             number_of_node += 1
 
 

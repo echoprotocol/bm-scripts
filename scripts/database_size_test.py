@@ -13,7 +13,7 @@ class database_size_test:
             self.cycles = cycles
             self.d = deployer(node_count=node_count, echo_bin=echo_bin, image=image, committee_count = comm_count)
             self.d.wait_nodes()
-            self.s = Sender(self.d.get_addresses()[0], self.d.rpc_ports[0])
+            self.s = Sender(self.d.get_addresses()[0], self.d.rpc_ports[0], self.d.committee_count)
             self.s.import_balance_to_nathan()
             self.s.balance_distribution()
         except Exception as e:

@@ -11,9 +11,9 @@ import subprocess
 import sys
 import socket
 import json
-from echopy.echobase.account import BrainKey
 from ..utils.files_path import RESOURCES_DIR
 from ..utils.genesis_template import create_init_account, get_genesis_string
+from ..utils.utils import generate_keys
 
 COMMITTEE_COUNT=20
 NATHAN_PRIV="5JjHQ1GqTbqVZLdTB3QRqcUWA6LezqA65iPJbq5craE6MRc4u9K"
@@ -52,7 +52,7 @@ class deployer:
         self.launch_strs=[]
         self.private_keys=[]
         self.public_keys=[]
-        self.comm_names=[]
+        self.account_names=[]
         self.host_addresses=host_addresses
         self.start_node=start_node
 
@@ -69,7 +69,10 @@ class deployer:
         self.conn_type = conn_type
 
         self.set_committee_count(committee_count)
-        self.set_accs_info()
+        self.set_account_names()
+        keys = generate_keys(self.committee_count)
+        self.private_keys = keys[0]
+        self.public_keys = keys[1]
         self.create_genesis()
         self.create_volume_dir()
         if remote == True:
@@ -80,6 +83,11 @@ class deployer:
     def set_node_names(self):
         for i in range(self.node_count):
             self.node_names.append("echonode{}".format(i))
+
+    def set_account_names(self):
+        for i in range(self.committee_count-1):
+            self.account_names.append("init{}".format(i))
+        self.account_names.append("nathan")
 
     def set_node_addresses(self):
         for name in self.node_names:
@@ -168,23 +176,6 @@ class deployer:
         self.committee_count = 20
         if count > self.committee_count:
             self.committee_count = count
-
-    def set_accs_info(self):
-        name="init{}" 
-        for i in range(self.committee_count-1):
-            key = BrainKey(brain_key=name.format(i))
-            self.private_keys.append(key.get_private_key_base58())
-            self.public_keys.append(key.get_public_key_base58())
-            self.comm_names.append(name.format(i))
-        self.private_keys.append(NATHAN_PRIV)
-        self.public_keys.append(NATHAN_PUB)
-        self.comm_names.append("nathan")
-
-        data=json.dumps(self.private_keys)
-        dirname=os.path.dirname(__file__)
-        file=dirname+"/../resources/private_keys.json"
-        with open(file, 'w') as f:
-            json.dump(data, f) 
 
     def form_serial_connection(self):
         self.seed_node_args.append("")
@@ -367,7 +358,7 @@ class deployer:
     def create_genesis(self):
         acc_lst=[]
         for i in range(self.committee_count):
-            acc_lst.append(create_init_account(self.comm_names[i], 
+            acc_lst.append(create_init_account(self.account_names[i], 
                 self.public_keys[i], self.public_keys[i]))
         genesis_str=get_genesis_string(acc_lst)
         dirname=os.path.dirname(__file__)

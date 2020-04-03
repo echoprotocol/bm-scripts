@@ -6,6 +6,7 @@ from random import randrange
 
 from .base import Base
 from ..node_deployer.deployer import NATHAN_PRIV
+from ..utils.utils import generate_keys
 initial_balance = 1000000000000000
 import random
 import json
@@ -14,7 +15,7 @@ import os
 from echopy import Echo
 
 class Sender(Base):
-    def __init__(self, node_url, port, call_id = 0):
+    def __init__(self, node_url, port, account_num, call_id = 0):
         super().__init__(node_url, port)
         self.url="ws://{}:{}".format(node_url, port)
         self.call_id = call_id
@@ -26,16 +27,8 @@ class Sender(Base):
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
         self.ethereum_contract = self.get_byte_code("fib", "code", ethereum_contract = True)
         self.total_num_send = 0
-        self.read_private_keys()
+        self.private_keys = generate_keys(account_num)[0]
         self.from_id=6
-
-    def read_private_keys(self):
-        dirname=os.path.dirname(__file__)
-        file=dirname+"/../resources/private_keys.json"
-        with open(file, 'r') as f:
-            data= f.read()
-        data=json.loads(data) 
-        self.private_keys=json.loads(data)
 
     @staticmethod
     def seconds_to_iso(sec):

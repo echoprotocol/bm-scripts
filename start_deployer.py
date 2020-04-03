@@ -51,7 +51,7 @@ def main():
                 image=args.image, start_node=args.server_num, host_addresses=hosts_info, remote=True, committee_count=args.committee_count)
     d.wait_nodes()
     if args.server_num == 0:
-        s=Sender(d.addresses[0], d.rpc_ports[0])
+        s=Sender(d.addresses[0], d.rpc_ports[0], d.committee_count)
         s.import_balance_to_nathan()
         s.balance_distribution()
 

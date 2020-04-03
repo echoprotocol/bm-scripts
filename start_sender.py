@@ -34,6 +34,8 @@ def main():
         type=int, help="Number of transactions", default=1)
     parser.add_argument('-d', '--delay', dest='delay', action='store',
         type=int, help="Delay in seconds between transfers", default=2)
+    parser.add_argument('-n', '--account_num', dest='account_num', action='store',
+        type=int, help="Number of accounts", required=True)
     args = parser.parse_args()
     
     start_port=8090
@@ -46,7 +48,7 @@ def main():
             try:
                 print("Trying connect to",addr,":",start_port+i)
                 sys.stdout.flush()
-                slist.append(Sender(addr, start_port+i, (i+prev_num_nodes)))
+                slist.append(Sender(addr, start_port+i, args.account_num, (i+prev_num_nodes)))
                 info_lst.append("Address : {}  Port : {}".format(addr, start_port+i))
                 print("Done")
                 sys.stdout.flush() 
