@@ -78,8 +78,9 @@ def main():
                     if "skip_transaction_dupe_check" in str(rpc_error):    # there will little part of all transactions
                         print("Caught txs dupe")
                         pass
-                    else:
-                        raise Exception(str(rpc_error))
+                    elif "is_known_transaction" in  str(rpc_error):
+                        print("Transaction is expired")
+                        pass
                 except Exception as e:
                     print("Caught exception during transaction sending")
                     sys.stdout.flush()

@@ -78,7 +78,7 @@ class Sender(Base):
     def send_transaction_list(self, transaction_list, with_response = False):
         sign_transaction_list = []
 
-        time_increment = 600
+        time_increment = 900
         divider = random.randint(100, 250)
         for tr in transaction_list:
             now_iso = self.seconds_to_iso(datetime.now(timezone.utc).timestamp())
