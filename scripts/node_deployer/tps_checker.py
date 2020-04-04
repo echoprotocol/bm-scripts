@@ -91,10 +91,3 @@ class tps_checker:
         self.ws.close()
         print("Waiting tps checker...")
         self.wait_check()
-
-#def test():
-#    tc = tps_checker("172.17.0.2", 10)
-#    tc.wait_check()
-#    print("Tps : ", tc.get_tps())
-#
-#test()

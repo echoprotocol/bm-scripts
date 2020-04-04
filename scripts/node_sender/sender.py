@@ -176,8 +176,8 @@ class Sender(Base):
             numbers = list(range(6,self.account_count+6))
             r = random.choice(numbers)
             operation = self.echo_ops.get_contract_call_operation(echo = self.echo, registrar = "1.2.{}".format(r),
-                                                              bytecode = code, callee = contract_id, signer = self.nathan_priv_key)
-            collected_operation = self.collect_operations(operation, self.private_keys[r-6])
+                                                              bytecode = code, callee = contract_id, signer = self.private_keys[r-6])
+            collected_operation = self.collect_operations(operation, self.database_api_identifier)
             transaction_list.append(collected_operation)
             n += 1
 

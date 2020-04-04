@@ -83,11 +83,3 @@ class utilization_checker:
     def interrupt_checker(self):
         print("Waiting utilization checker...")
         self.stop_check()
-
-#def test():
-#    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay")
-#    u = utilization_checker(d.get_addresses(), d.get_node_names())
-#    u.run_check()
-#    time.sleep(120)
-#    u.stop_check()
-#test()

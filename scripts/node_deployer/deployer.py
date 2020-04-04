@@ -365,17 +365,3 @@ class deployer:
         fname=dirname+"/../resources/genesis.json"
         with open(fname, "w") as text_file:
             text_file.write(genesis_str)
-
-
-#def test():
-#    d = deployer(node_count=2, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay", committee_count=5)
-#    nodes = "echonode0 echonode1"
-#    d.run_pumba(nodes, 500, 10)
-#    time.sleep(30)
-#    d.kill_pumba()
-#    #d.stop_containers()
-#test()
-    #def __init__(self, echo_bin="", pumba_bin="", node_count=2, image="",\
-    #             conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args=""):
-#def test():
-#    d = deployer(node_count=30, echo_bin="/home/pplex/echo/build/bin/echo_node", pumba_bin="/home/pplex/pumba/.bin/pumba", image="ubuntu_delay", start_node = 2, host_addresses = {"192.168.2.2": 30, "192.168.2.3": 30}, remote = True)
