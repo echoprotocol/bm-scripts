@@ -86,9 +86,9 @@ def main():
             break
 
         t.collected_tx_number=0
-        time.sleep(900)
-        tps=t.collected_tx_number/900
-        print("Current tps: ", tps, flush=True)
+        time.sleep(300)
+        tps=t.collected_tx_number/300
+        print(datetime.now().strftime("%H:%M:%S"), "current tps:", tps, "block num:", t.block_number, flush=True)
         
         if (tps < 10):
             send_alert("[ALERT]: Low tps {} on server {}".format(tps, args.server_name), args.url)

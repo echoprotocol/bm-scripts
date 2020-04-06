@@ -20,13 +20,6 @@ def kill_sender():
             os.kill(proc.pid, signal.SIGTERM)
 
 def main():
-    kill_sender()
-
-    def signal_handler(sig, frame):
-        print("\nCaught SIGINT:")
-        raise SystemExit("Exited from Ctrl-C handler")
-    signal.signal(signal.SIGINT, signal_handler)
-
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     parser.add_argument('-hi', '--hosts_info', dest='hosts_info', action='store',
         type=str, help="Host info in dictionary formar: {\"ip address\" : number of nodes}", default="", required=True)
@@ -36,8 +29,17 @@ def main():
         type=int, help="Delay in seconds between transfers", default=2)
     parser.add_argument('-n', '--account_num', dest='account_num', action='store',
         type=int, help="Number of accounts", required=True)
+    parser.add_argument('-s', '--start_new', action='store_true', help="Start new sender instance without deletion previous")
     args = parser.parse_args()
-    
+
+    if args.start_new == False:
+        kill_sender()
+
+    def signal_handler(sig, frame):
+        print("\nCaught SIGINT:")
+        raise SystemExit("Exited from Ctrl-C handler")
+    signal.signal(signal.SIGINT, signal_handler)
+
     start_port=8090
     slist=[]
     info_lst=[]
@@ -77,10 +79,12 @@ def main():
                 except echopy.echoapi.ws.exceptions.RPCError as rpc_error: # we should catch txs dupes, it is cost of decreasing transaction expiration time
                     if "skip_transaction_dupe_check" in str(rpc_error):    # there will little part of all transactions
                         print("Caught txs dupe")
-                        pass
                     elif "is_known_transaction" in  str(rpc_error):
-                        print("Transaction is expired")
-                        pass
+                        print("The same transaction exists in chain")
+                    elif "pending_txs" in  str(rpc_error):
+                        print("The same transaction exists in pending txs")
+                    else:
+                        print(str(rpc_error))
                 except Exception as e:
                     print("Caught exception during transaction sending")
                     sys.stdout.flush()

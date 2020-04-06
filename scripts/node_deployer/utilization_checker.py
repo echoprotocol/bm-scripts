@@ -5,7 +5,7 @@ import time
 import psutil
 import threading
 from .deployer import client 
-from .tps_checker import tps_checker
+from datetime import datetime
 
 class utilization_checker:
     def __init__(self, addresses = [], ports = [], names = []):
@@ -52,7 +52,6 @@ class utilization_checker:
         print("Collection statistics for", names)
         while (self.is_running):
             for i, pid in zip(self.nums, self.pids):
-                block_number = tps_checker.get_block_number()
                 process = psutil.Process(pid)
                 rssize = process.memory_info().rss
                 vmsize = process.memory_info().vms
@@ -63,7 +62,8 @@ class utilization_checker:
                 x86size = bytes.decode('utf-8').split('\t')[0]
                 bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/evm").output
                 evmsize = bytes.decode('utf-8').split('\t')[0]
-                self.files[i].write("%d %d  %d  %f  %s  %s  %s\n" % (block_number, rssize, vmsize, cpu, dbsize, x86size, evmsize))
+                time = datetime.now().strftime("%H:%M:%S")
+                self.files[i].write("%s  %d  %d  %f  %s  %s  %s\n" % (time, rssize, vmsize, cpu, dbsize, x86size, evmsize))
                 self.files[i].flush()
             time.sleep(20)
 

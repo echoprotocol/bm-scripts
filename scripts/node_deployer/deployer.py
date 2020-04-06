@@ -40,7 +40,7 @@ client = docker.from_env()
 
 class deployer:
     def __init__(self, echo_bin="", pumba_bin="", node_count=2, image="",\
-                 conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args="", committee_count=20):
+                 conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args="", committee_count=20, volume_dir = "", clear_volume = True):
         self.delayed_nodes=[]
         self.node_names=[]
         self.inverse_delayed_nodes=[]
@@ -74,7 +74,7 @@ class deployer:
         self.private_keys = keys[0]
         self.public_keys = keys[1]
         self.create_genesis()
-        self.create_volume_dir()
+        self.create_volume_dir(volume_dir, clear_volume)
         if remote == True:
             self.remote_deploying()
         else:
@@ -248,7 +248,6 @@ class deployer:
             container = client.containers.run(self.image,detach=True,name=self.node_names[i],remove=True,tty=True,
                  user=os.geteuid(), volumes=volumes, ports={'{}/tcp'.format(self.rpc_ports[i]): (self.host_ip, self.rpc_ports[i]),
                  '{}/tcp'.format(self.ports[i]): (self.host_ip, self.ports[i])},ulimits=[docker.types.Ulimit(name='core', soft=-1, hard=-1)])
-            print("Started", self.node_names[i], "container")
         print("")
 
     def stop_containers(self):
@@ -276,7 +275,7 @@ class deployer:
 
     def run_pumba(self, nodes, time, jitter):
         self.pumba_started = True
-        cmd = "{pumba_bin} netem --interface=eth0 --duration 90m delay --time {time} --jitter {jitter} --correlation 0 {containers}"
+        cmd = "{pumba_bin} netem --interface=eth0 --duration 7200m --tc-image gaiadocker/iproute2 delay --time {time} --jitter {jitter} --correlation 0 {containers}"
         self.pumba_proc = subprocess.Popen(cmd.format(pumba_bin=self.pumba_bin,
             time=time, jitter=jitter, containers = nodes), shell=True, preexec_fn=os.setsid)
 
@@ -336,24 +335,28 @@ class deployer:
         self.set_launch_args()
         self.start_nodes()
 
-    def create_volume_dir(self):
-        dirname=os.path.dirname(__file__)
-        self.vol_folder=dirname+"/../../tmp"
+    def create_volume_dir(self, volume_dir, clear_volume):
+        if volume_dir == "":
+            dirname=os.path.dirname(__file__)
+            self.vol_folder=dirname+"/../../tmp"
+        else:
+            self.vol_folder=volume_dir
         if not os.path.exists(self.vol_folder):
             os.makedirs(self.vol_folder)
         dirlst=os.listdir(self.vol_folder)
-        if dirlst:
-            print("Clear tmp folder after previous run")
-            for filename in dirlst:
-                file_path = os.path.join(self.vol_folder, filename)
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)
-                    elif os.path.isdir(file_path):
-                        shutil.rmtree(file_path)
-                except Exception as e:
-                    print('Failed to delete %s. Reason: %s' % (file_path, e))
-            print("Clearing - Done")
+        if clear_volume:
+            if dirlst:
+                print("Clear tmp folder after previous run")
+                for filename in dirlst:
+                    file_path = os.path.join(self.vol_folder, filename)
+                    try:
+                        if os.path.isfile(file_path) or os.path.islink(file_path):
+                            os.unlink(file_path)
+                        elif os.path.isdir(file_path):
+                            shutil.rmtree(file_path)
+                    except Exception as e:
+                        print('Failed to delete %s. Reason: %s' % (file_path, e))
+                print("Clearing - Done")
 
     def create_genesis(self):
         acc_lst=[]
