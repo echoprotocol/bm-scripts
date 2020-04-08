@@ -62,8 +62,8 @@ class utilization_checker:
                 x86size = bytes.decode('utf-8').split('\t')[0]
                 bytes = self.containers[i].exec_run(base.format(self.names[i]) + "/evm").output
                 evmsize = bytes.decode('utf-8').split('\t')[0]
-                time = datetime.now().strftime("%H:%M:%S")
-                self.files[i].write("%s  %d  %d  %f  %s  %s  %s\n" % (time, rssize, vmsize, cpu, dbsize, x86size, evmsize))
+                t = datetime.now().strftime("%H:%M:%S")
+                self.files[i].write("%s  %d  %d  %f  %s  %s  %s\n" % (t, rssize, vmsize, cpu, dbsize, x86size, evmsize))
                 self.files[i].flush()
             time.sleep(20)
 

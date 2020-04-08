@@ -291,7 +291,7 @@ class deployer:
 
     def kill_pumba(self):
         if self.pumba_started == True:
-            os.killpg(os.getpgid(self.pumba_proc.pid), signal.SIGTERM)
+            os.killpg(os.getpgid(self.pumba_proc.pid), signal.SIGKILL)
     
     def get_host_ip(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

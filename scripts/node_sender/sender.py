@@ -12,7 +12,20 @@ import random
 import json
 import os
 
+import asyncio
+import logging
+import websockets
+import threading
+import time
+from websocket import create_connection
+
 from echopy import Echo
+
+login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}'
+database_req = '{"method": "call", "params": [1, "database", []], "id": 0}'
+subscribe_callback_req = '{"method": "set_subscribe_callback", "params": [0, false], "id": 0}'
+subscribe_dgpo_req = '{"method": "get_objects", "params": [["2.1.0"]], "id": 0}'
+tx_count_req = '{{"method": "get_block_tx_number", "params": [{block_id}], "id": 0}}'
 
 class Sender(Base):
     def __init__(self, node_url, port, account_num, call_id = 0):
@@ -29,6 +42,28 @@ class Sender(Base):
         self.total_num_send = 0
         self.private_keys = generate_keys(account_num)[0]
         self.from_id=6
+        self.prev_head=self.dynamic_global_chain_data['head_block_number']
+
+        self.is_subscribed_to_dgpo = False
+        self.lock=threading.Lock()
+
+    def processing_gpo(self):
+        ws = create_connection(self.url)
+        ws.send(login_req)
+        ws.recv()
+        ws.send(database_req)
+        ws.recv()
+        ws.send(subscribe_callback_req)
+        ws.recv()
+        ws.send(subscribe_dgpo_req)
+        ws.recv()
+        self.is_subscribed_to_dgpo = True
+        while True:
+            msg = ws.recv()
+            self.lock.acquire()
+            response = json.loads(msg)
+            self.dynamic_global_chain_data=response['params'][1][0][0]
+            self.lock.release()
 
     @staticmethod
     def seconds_to_iso(sec):
@@ -76,6 +111,10 @@ class Sender(Base):
         print("Balance distribution - Done\n")
 
     def send_transaction_list(self, transaction_list, with_response = False):
+        if self.is_subscribed_to_dgpo == False:
+            t = threading.Thread(target=self.processing_gpo)
+            t.start()
+
         sign_transaction_list = []
 
         time_increment = 900
@@ -89,14 +128,18 @@ class Sender(Base):
             self.call_id += 1
             self.total_num_send += 1
             if (self.total_num_send % divider == 0):
-                echo = Echo()
-                echo.connect(self.url)
-                prev_head=self.dynamic_global_chain_data['head_block_number']
-                self.dynamic_global_chain_data = echo.api.database.get_objects(['2.1.0'])[0]
-                echo.disconnect()
+                self.lock.acquire()
+
+                #echo = Echo()
+                #echo.connect(self.url)
+                #prev_head=self.dynamic_global_chain_data['head_block_number']
+                #self.dynamic_global_chain_data = self.echo.get_objects(['2.1.0'])[0]
+                #echo.disconnect()
                 divider = random.randint(100, 250)
-                if prev_head != self.dynamic_global_chain_data['head_block_number']:
+                if self.prev_head != self.dynamic_global_chain_data['head_block_number']:
                     self.call_id = 0
+                    self.prev_head=self.dynamic_global_chain_data['head_block_number']
+                self.lock.release()
 
         k = 0
         for tr in sign_transaction_list:
@@ -128,7 +171,7 @@ class Sender(Base):
             transfer_operation = self.echo_ops.get_transfer_operation(echo = self.echo, from_account_id = from_,
                 amount = transfer_amount, to_account_id = to_, signer = self.private_keys[self.from_id-6])
 
-            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier)
+            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier, fee_amount=20)
             transaction_list.append(collected_operation)
             n += 1
             if (self.from_id == self.account_count+6):
