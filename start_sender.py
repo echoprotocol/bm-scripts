@@ -31,20 +31,23 @@ def main():
         type=int, help="Number of accounts", required=True)
     parser.add_argument('-s', '--start_new', action='store_true', help="Start new sender instance without deletion previous")
     args = parser.parse_args()
+    hosts_info=json.loads(args.hosts_info)
 
     if args.start_new == False:
         kill_sender()
 
-    def signal_handler(sig, frame):
-        print("\nCaught SIGINT:")
-        raise SystemExit("Exited from Ctrl-C handler")
-    signal.signal(signal.SIGINT, signal_handler)
-
     start_port=8090
     slist=[]
     info_lst=[]
-    hosts_info=json.loads(args.hosts_info)
     prev_num_nodes=0
+
+    def signal_handler(sig, frame):
+        print("\nCaught SIGINT:")
+        for s in slist:
+            s.interrupt_sender()
+        raise SystemExit("Exited from Ctrl-C handler")
+    signal.signal(signal.SIGINT, signal_handler)
+
     for addr, count in hosts_info.items():
         for i in range(count):
             try:
@@ -71,7 +74,7 @@ def main():
                 try:
                     print("Trying sent transactions to:", info_lst[i])
                     sys.stdout.flush()
-                    slist[i].transfer(args.txs_count)
+                    slist[i].transfer(args.txs_count, fee_amount=20)
                     print(args.txs_count, "Transactions sent")
                     sys.stdout.flush()
                     time.sleep(args.delay)

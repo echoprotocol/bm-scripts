@@ -11,12 +11,7 @@ initial_balance = 1000000000000000
 import random
 import json
 import os
-
-import asyncio
-import logging
-import websockets
 import threading
-import time
 from websocket import create_connection
 
 from echopy import Echo
@@ -32,6 +27,7 @@ class Sender(Base):
         super().__init__(node_url, port)
         self.url="ws://{}:{}".format(node_url, port)
         self.call_id = call_id
+        self.index = call_id
         self.nathan = self.get_account("nathan", self.database_api_identifier)
         self.echo_nathan_id = self.nathan["id"]
         self.account_count=int(self.echo_nathan_id.split('.')[-1]) - 6 # without nathan
@@ -44,27 +40,43 @@ class Sender(Base):
         self.from_id=6
         self.prev_head=self.dynamic_global_chain_data['head_block_number']
 
-        self.is_subscribed_to_dgpo = False
+        self.is_interrupted=False
         self.lock=threading.Lock()
+        self.sws=None
+        self.t=threading.Thread(target=self.processing_gpo)
+        self.t.start()
 
     def processing_gpo(self):
-        ws = create_connection(self.url)
-        ws.send(login_req)
-        ws.recv()
-        ws.send(database_req)
-        ws.recv()
-        ws.send(subscribe_callback_req)
-        ws.recv()
-        ws.send(subscribe_dgpo_req)
-        ws.recv()
-        self.is_subscribed_to_dgpo = True
-        while True:
-            msg = ws.recv()
-            self.lock.acquire()
-            response = json.loads(msg)
-            self.dynamic_global_chain_data=response['params'][1][0][0]
-            self.lock.release()
+        try:
+            self.sws = create_connection(self.url)
+            self.sws.send(login_req)
+            self.sws.recv()
+            self.sws.send(database_req)
+            self.sws.recv()
+            self.sws.send(subscribe_callback_req)
+            self.sws.recv()
+            self.sws.send(subscribe_dgpo_req)
+            self.sws.recv()
+            self.is_subscribed_to_dgpo = True
+            while self.is_interrupted == False:
+                msg = self.sws.recv()
+                self.lock.acquire()
+                response = json.loads(msg)
+                self.dynamic_global_chain_data=response['params'][1][0][0]
+                self.lock.release()
+        except (json.decoder.JSONDecodeError, OSError) as e:
+            if self.is_interrupted == False:
+                print("Caught exception in tps colletor thread:")
+                print("-------------------------------------------")
+                logging.error(traceback.format_exc())
+                print("-------------------------------------------")
 
+    def interrupt_sender(self):
+        self.is_interrupted=True
+        if self.sws is not None:
+            self.sws.close()
+            self.t.join()
+        
     @staticmethod
     def seconds_to_iso(sec):
         iso_result = datetime.fromtimestamp(sec, timezone.utc).replace(microsecond=0).isoformat()
@@ -111,9 +123,6 @@ class Sender(Base):
         print("Balance distribution - Done\n")
 
     def send_transaction_list(self, transaction_list, with_response = False):
-        if self.is_subscribed_to_dgpo == False:
-            t = threading.Thread(target=self.processing_gpo)
-            t.start()
 
         sign_transaction_list = []
 
@@ -148,7 +157,7 @@ class Sender(Base):
             if (k % 1000 == 0):
                 print("Sent ", k, " transactions")
 
-    def transfer(self, transaction_count = 1, amount = 1):
+    def transfer(self, transaction_count = 1, amount = 1, fee_amount=0):
         from_acc = "1.2.{}"
         to_acc = "1.2.{}"
 
@@ -156,6 +165,8 @@ class Sender(Base):
         d=self.account_count+6
 
         transfer_amount = amount
+        if amount == 1:
+            transfer_amount = random.randint(self.index+1, self.index+10)
         transaction_list = []
 
         n = 0
@@ -171,7 +182,7 @@ class Sender(Base):
             transfer_operation = self.echo_ops.get_transfer_operation(echo = self.echo, from_account_id = from_,
                 amount = transfer_amount, to_account_id = to_, signer = self.private_keys[self.from_id-6])
 
-            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier, fee_amount=20)
+            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier, fee_amount=fee_amount)
             transaction_list.append(collected_operation)
             n += 1
             if (self.from_id == self.account_count+6):

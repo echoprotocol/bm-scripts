@@ -68,6 +68,7 @@ def main():
         s=Sender(d.addresses[0], d.rpc_ports[0], d.committee_count)
         s.import_balance_to_nathan()
         s.balance_distribution()
+        s.interrupt_sender()
 
     if args.url != "":
         alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} >alerts.log 2>&1 &'
