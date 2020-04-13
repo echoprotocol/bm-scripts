@@ -80,9 +80,7 @@ def create_delayed_node_lst(args):
 def select_suite(args):
     if args.suite == "tps":
        if args.pumba_bin != "":
-            return tps_test(args.node_count, args.echo_bin, args.pumba_bin, args.image,
-               args.txs_count, args.time, create_delayed_node_lst(args),
-               get_transaction_type(args.tx_type), get_connection_type(args.conn_type), args.committee_count)
+            return tps_test(args.node_count, args.echo_bin, args.pumba_bin, args.image, args.txs_count, args.time, create_delayed_node_lst(args), get_transaction_type(args.tx_type), get_connection_type(args.conn_type), args.committee_count)
        else:
            raise Exception("pumba_bin argmunet should be specified!")
     elif args.suite == "database":

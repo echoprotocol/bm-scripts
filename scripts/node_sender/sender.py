@@ -12,6 +12,7 @@ import random
 import json
 import os
 import threading
+import echopy
 from websocket import create_connection
 
 from echopy import Echo
@@ -74,6 +75,8 @@ class Sender(Base):
     def interrupt_sender(self):
         self.is_interrupted=True
         if self.sws is not None:
+            if self.lock.locked() == True:
+                self.lock.release()
             self.sws.close()
             self.t.join()
         
@@ -138,12 +141,6 @@ class Sender(Base):
             self.total_num_send += 1
             if (self.total_num_send % divider == 0):
                 self.lock.acquire()
-
-                #echo = Echo()
-                #echo.connect(self.url)
-                #prev_head=self.dynamic_global_chain_data['head_block_number']
-                #self.dynamic_global_chain_data = self.echo.get_objects(['2.1.0'])[0]
-                #echo.disconnect()
                 divider = random.randint(100, 250)
                 if self.prev_head != self.dynamic_global_chain_data['head_block_number']:
                     self.call_id = 0
@@ -152,12 +149,23 @@ class Sender(Base):
 
         k = 0
         for tr in sign_transaction_list:
-            k += 1
-            self.echo_ops.broadcast(tr, with_response = with_response)
+            try:
+                self.echo_ops.broadcast(tr, with_response = with_response)
+                k += 1
+            except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
+                if "skip_transaction_dupe_check" in str(rpc_error):
+                    print("Caught txs dupe")
+                elif "is_known_transaction" in  str(rpc_error):
+                    print("The same transaction exists in chain")
+                elif "pending_txs" in  str(rpc_error):
+                    print("The same transaction exists in pending txs")
+                else:
+                    print(str(rpc_error))
             if (k % 1000 == 0):
                 print("Sent ", k, " transactions")
+        return k
 
-    def transfer(self, transaction_count = 1, amount = 1, fee_amount=0):
+    def transfer(self, transaction_count = 1, amount = 1, fee_amount=None):
         from_acc = "1.2.{}"
         to_acc = "1.2.{}"
 
@@ -166,7 +174,7 @@ class Sender(Base):
 
         transfer_amount = amount
         if amount == 1:
-            transfer_amount = random.randint(self.index+1, self.index+10)
+            transfer_amount = random.randint(self.index+1, self.index+50)
         transaction_list = []
 
         n = 0
@@ -190,10 +198,10 @@ class Sender(Base):
             else:
                 self.from_id += 1
 
-        self.send_transaction_list(transaction_list)
+        return self.send_transaction_list(transaction_list)
 
 
-    def create_contract(self, x86_64_contract = True, value = 0, transaction_count = 1, with_response = False):
+    def create_contract(self, x86_64_contract = True, value = 0, transaction_count = 1, fee_amount=None, with_response = False):
         if x86_64_contract is True:
             code = self.x86_64_contract
         else:
@@ -208,13 +216,13 @@ class Sender(Base):
             operation = self.echo_ops.get_contract_create_operation(echo = self.echo, registrar = "1.2.{}".format(r), bytecode = code,
                                                                     value_amount = value, value_asset_id = self.echo_asset,
                                                                     signer = self.private_keys[r-6])
-            collected_operation = self.collect_operations(operation, self.database_api_identifier)
+            collected_operation = self.collect_operations(operation, self.database_api_identifier, fee_amount=fee_amount)
             transaction_list.append(collected_operation)
             n += 1
 
-        self.send_transaction_list(transaction_list, with_response = with_response)
+        return self.send_transaction_list(transaction_list, with_response = with_response)
 
-    def call_contract(self, contract_id = None, x86_64_contract = True, value = 0, transaction_count = 1):
+    def call_contract(self, contract_id = None, x86_64_contract = True, value = 0, transaction_count = 1, fee_amount=None):
         if contract_id is None:
             contract_id = "1.11.0"
 
@@ -231,11 +239,11 @@ class Sender(Base):
             r = random.choice(numbers)
             operation = self.echo_ops.get_contract_call_operation(echo = self.echo, registrar = "1.2.{}".format(r),
                                                               bytecode = code, callee = contract_id, signer = self.private_keys[r-6])
-            collected_operation = self.collect_operations(operation, self.database_api_identifier)
+            collected_operation = self.collect_operations(operation, self.database_api_identifier, fee_amount=fee_amount)
             transaction_list.append(collected_operation)
             n += 1
 
-        self.send_transaction_list(transaction_list)
+        return self.send_transaction_list(transaction_list)
 
     def create_transfer_transaction(self):
         transfer_amount = 1

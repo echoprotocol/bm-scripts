@@ -25,6 +25,7 @@ class tps_test:
             self.s = Sender(self.d.get_addresses()[0], self.d.rpc_ports[0],self.d.committee_count)
             self.s.import_balance_to_nathan()
             self.s.balance_distribution()
+            self.sent_txs = 0
         except Exception as e:
             if self.d is not None:
                 self.d.kill_pumba()
@@ -40,33 +41,38 @@ class tps_test:
         print("Started transfer case,", "transaction count -", self.tx_count)
         self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
-        self.s.transfer(self.tx_count)
+        self.sent_txs = self.s.transfer(self.tx_count)
+        self.tc.sent_tx_number = self.sent_txs
 
     def run_create_evm_case(self):
         print("Started create evm case,", "transaction count -", self.tx_count)
         self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
-        self.s.create_contract(transaction_count = self.tx_count, x86_64_contract = False)
+        self.sent_txs = self.s.create_contract(transaction_count = self.tx_count, x86_64_contract = False)
+        self.tc.sent_tx_number = self.sent_txs
 
     def run_call_emv_case(self):
         print("Started call evm case,", "transaction count -", self.tx_count)
         self.s.create_contract(x86_64_contract = False, with_response = True)
         self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
-        self.s.call_contract(contract_id = "1.11.0", transaction_count = self.tx_count, x86_64_contract = False)
+        self.sent_txs = self.s.call_contract(contract_id = "1.11.0", transaction_count = self.tx_count, x86_64_contract = False)
+        self.tc.sent_tx_number = self.sent_txs
 
     def run_create_x86_case(self):
         print("Started create x86 case,", "transaction count -", self.tx_count)
         self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
-        self.s.create_contract(transaction_count = self.tx_count, x86_64_contract = True)
+        self.sent_txs = self.s.create_contract(transaction_count = self.tx_count, x86_64_contract = True)
+        self.tc.sent_tx_number = self.sent_txs
 
     def run_call_x86_case(self):
         print("Started call x86 case,", "transaction count -", self.tx_count)
         self.s.create_contract(x86_64_contract = True, with_response = True)
         self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
-        self.s.call_contract(contract_id = "1.11.0", transaction_count = self.tx_count, x86_64_contract = True)
+        self.sent_txs = self.s.call_contract(contract_id = "1.11.0", transaction_count = self.tx_count, x86_64_contract = True)
+        self.tc.sent_tx_number = self.sent_txs
 
     def run_case(self):
         casemap = { 0: self.run_transfer_case,
@@ -80,10 +86,12 @@ class tps_test:
         self.uc = utilization_checker(self.d.get_addresses(), self.d.ports, self.d.get_node_names())
         self.uc.run_check()
         self.run_case()
+        self.s.interrupt_sender()
         self.tc.wait_check()
         self.uc.stop_check()
         self.d.kill_pumba()
 
     def stop_checkers(self):
+        self.s.interrupt_sender()
         self.tc.interrupt_checker()
         self.uc.interrupt_checker()

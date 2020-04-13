@@ -12,6 +12,7 @@ class load_test:
     def __init__(self, node_count, echo_bin, image, pumba_bin, delay_time, conn_type, comm_count, tx_count = 10, cycles = 1):
         try:
             self.d = None
+            self.senders_list = []
             self.is_interrupted = False
             self.tx_count = tx_count
             self.cycles = cycles
@@ -44,38 +45,32 @@ class load_test:
         self.lock.release()
 
     def send_set(self, sender):
-        try:
-            i = 0
-            transfer_txs = int(self.tx_count * tx_ratio.transfer)
-            create_txs= int(self.tx_count * tx_ratio.create_contract / 2)
-            call_txs = int(self.tx_count * tx_ratio.call_contract / 2)
-            while self.is_interrupted == False and i < self.cycles:
-                sender.transfer(transaction_count=int(self.tx_count * tx_ratio.transfer))
-                sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = True)
-                sender.call_contract(contract_id = "1.11.0", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = True)
-                sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = False)
-                sender.call_contract(contract_id = "1.11.1", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = False)
-                sleep(2)
-                i += 1
-                self.increase_sent_txs(transfer_txs+create_txs*2+call_txs*2)
-                print("Sent txs", self.sent_txs)
-        except echopy.echoapi.ws.exceptions.RPCError as rpc_error: # we should catch txs dupes, it is cost of decreasing transaction expiration time
-            if "skip_transaction_dupe_check" in str(rpc_error):    # there will little part of all transactions
-                pass
+        i = 0
+        collected = 0
+        while self.is_interrupted == False and i < self.cycles:
+            collected += sender.transfer(transaction_count=int(self.tx_count * tx_ratio.transfer))
+            collected += sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = True)
+            collected += sender.call_contract(contract_id = "1.11.0", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = True)
+            collected += sender.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = False)
+            collected += sender.call_contract(contract_id = "1.11.1", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = False)
+            sleep(2)
+            i += 1
+            self.increase_sent_txs(collected)
+            collected = 0
+            print("Sent txs", self.sent_txs)
 
     def run_test(self):
-        senders_list = []
         number_of_node = 0
         for a,p in zip(self.d.get_addresses(), self.d.rpc_ports):
-            senders_list.append(Sender(a,p,self.d.committee_count, (number_of_node * self.tx_count * ((self.cycles / 100) + (self.cycles % 1000)) + number_of_node * 5)))
+            self.senders_list.append(Sender(a,p,self.d.committee_count, (number_of_node * self.tx_count * ((self.cycles / 100) + (self.cycles % 1000)) + number_of_node * 5)))
             number_of_node += 1
 
 
-        senders_list[0].import_balance_to_nathan()
-        senders_list[0].balance_distribution()
+        self.senders_list[0].import_balance_to_nathan()
+        self.senders_list[0].balance_distribution()
 
-        senders_list[0].create_contract(x86_64_contract = True, with_response = True)
-        senders_list[0].create_contract(x86_64_contract = False, with_response = True)
+        self.senders_list[0].create_contract(x86_64_contract = True, with_response = True)
+        self.senders_list[0].create_contract(x86_64_contract = False, with_response = True)
 
         self.uc = utilization_checker([self.d.get_addresses()[1]], [self.d.ports[1]], ["echonode1"])
         self.uc.run_check()
@@ -84,7 +79,7 @@ class load_test:
 
         self.threads_list = []
 
-        for s in senders_list:
+        for s in self.senders_list:
             t = threading.Thread(target=self.send_set, args=(s, ))
             self.threads_list.append(t)
 
@@ -93,6 +88,9 @@ class load_test:
 
         for t in self.threads_list:
             t.join()
+        for s in self.senders_list:
+            s.interrupt_sender()
+
         self.tc.sent_tx_number = self.sent_txs
 
         self.tc.wait_check()
@@ -101,6 +99,8 @@ class load_test:
 
     def stop_checkers(self):
         self.is_interrupted = True
+        for s in self.senders_list:
+            s.interrupt_sender()
         for t in self.threads_list:
             t.join()
         self.tc.interrupt_checker()

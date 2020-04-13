@@ -74,20 +74,11 @@ def main():
                 try:
                     print("Trying sent transactions to:", info_lst[i])
                     sys.stdout.flush()
-                    slist[i].transfer(args.txs_count, fee_amount=20)
-                    print(args.txs_count, "Transactions sent")
+                    sent = slist[i].transfer(args.txs_count, fee_amount=20)
+                    print(sent, "Transactions sent")
                     sys.stdout.flush()
                     time.sleep(args.delay)
                     i=i+1
-                except echopy.echoapi.ws.exceptions.RPCError as rpc_error: # we should catch txs dupes, it is cost of decreasing transaction expiration time
-                    if "skip_transaction_dupe_check" in str(rpc_error):    # there will little part of all transactions
-                        print("Caught txs dupe")
-                    elif "is_known_transaction" in  str(rpc_error):
-                        print("The same transaction exists in chain")
-                    elif "pending_txs" in  str(rpc_error):
-                        print("The same transaction exists in pending txs")
-                    else:
-                        print(str(rpc_error))
                 except Exception as e:
                     print("Caught exception during transaction sending")
                     sys.stdout.flush()

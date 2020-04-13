@@ -11,6 +11,7 @@ import subprocess
 import sys
 import socket
 import json
+from shutil import copy
 from ..utils.files_path import RESOURCES_DIR
 from ..utils.genesis_template import create_init_account, get_genesis_string
 from ..utils.utils import generate_keys
@@ -75,6 +76,7 @@ class deployer:
         self.public_keys = keys[1]
         self.create_genesis()
         self.create_volume_dir(volume_dir, clear_volume)
+        self.copy_log_configs(clear_volume)
         if remote == True:
             self.remote_deploying()
         else:
@@ -368,3 +370,13 @@ class deployer:
         fname=dirname+"/../resources/genesis.json"
         with open(fname, "w") as text_file:
             text_file.write(genesis_str)
+
+    def copy_log_configs(self, clear_volume):
+        if clear_volume:
+            base="/echorand_test_datadir/echonode{}"
+            dirname=os.path.dirname(__file__)
+            config_file=dirname+"/../resources/log_config.ini" 
+            for i in range(self.node_count):
+                echo_folder=self.vol_folder+base.format(i)
+                os.makedirs(echo_folder)
+                copy(config_file, echo_folder)

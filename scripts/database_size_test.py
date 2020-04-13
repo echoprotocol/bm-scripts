@@ -29,15 +29,22 @@ class database_size_test:
         self.uc.run_check()
         self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count * self.cycles)
         self.tc.run_check()
+        transfer_txs = int(self.tx_count * tx_ratio.transfer)
+        create_txs = int(self.tx_count * tx_ratio.create_contract / 2)
+        call_txs = int(self.tx_count * tx_ratio.call_contract / 2)
+        collected = 0
         for i in range(self.cycles):
-            self.s.transfer(int(self.tx_count * tx_ratio.transfer))
-            self.s.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = True)
-            self.s.call_contract(contract_id = "1.11.0", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = True)
-            self.s.create_contract(transaction_count = (int(self.tx_count * tx_ratio.create_contract / 2)), x86_64_contract = False)
-            self.s.call_contract(contract_id = "1.11.1", transaction_count = (int(self.tx_count * tx_ratio.call_contract / 2)), x86_64_contract = False)
+            collected += self.s.transfer(transfer_txs)
+            collected += self.s.create_contract(transaction_count = create_txs, x86_64_contract = True)
+            collected += self.s.call_contract(contract_id = "1.11.0", transaction_count = call_txs, x86_64_contract = True)
+            collected += self.s.create_contract(transaction_count = create_txs, x86_64_contract = False)
+            collected += self.s.call_contract(contract_id = "1.11.1", transaction_count = call_txs, x86_64_contract = False)
+        self.tc.sent_tx_number = collected
+        self.s.interrupt_sender()
         self.tc.wait_check()
         self.uc.stop_check()
 
     def stop_checkers(self):
+        self.s.interrupt_sender()
         self.tc.interrupt_checker()
         self.uc.interrupt_checker()

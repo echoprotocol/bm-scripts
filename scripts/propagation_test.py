@@ -40,12 +40,14 @@ class propagation_test:
             self.pc1.run_check(self.tx)
             self.pc2.run_check(self.tx)
             self.s.echo_ops.broadcast(self.tx, with_response = False)
+            self.s.interrupt_sender()
             self.pc1.wait_check()
             self.pc2.wait_check()
             print("Propagation time: ", self.pc2.get_time() - self.pc1.get_time())
         self.d.kill_pumba()
 
     def stop_checkers(self):
+       self.s.interrupt_sender()
        if self.pc1 is not None:
             self.pc1.interrupt_checker()
        if self.pc2 is not None:

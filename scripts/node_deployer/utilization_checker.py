@@ -65,7 +65,7 @@ class utilization_checker:
                 t = datetime.now().strftime("%H:%M:%S")
                 self.files[i].write("%s  %d  %d  %f  %s  %s  %s\n" % (t, rssize, vmsize, cpu, dbsize, x86size, evmsize))
                 self.files[i].flush()
-            time.sleep(20)
+            time.sleep(10)
 
     def run_check(self):
         self.is_running = True
