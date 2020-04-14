@@ -72,7 +72,7 @@ class tps_test:
         self.tc = tps_checker(self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count)
         self.tc.run_check()
         self.sent_txs = self.s.call_contract(contract_id = "1.11.0", transaction_count = self.tx_count, x86_64_contract = True)
-        self.tc.sent_tx_number = self.sent_txs
+        self.tc.sent_tx_number = self.sent_txs-1
 
     def run_case(self):
         casemap = { 0: self.run_transfer_case,
