@@ -30,6 +30,7 @@ def main():
     parser.add_argument('-n', '--account_num', dest='account_num', action='store',
         type=int, help="Number of accounts", required=True)
     parser.add_argument('-s', '--start_new', action='store_true', help="Start new sender instance without deletion previous")
+    parser.add_argument('-t', '--tps', action='store_true', help="Enable adaptive sleep for constant tps")
     args = parser.parse_args()
     hosts_info=json.loads(args.hosts_info)
 
@@ -72,12 +73,19 @@ def main():
                 break
             while i < num:
                 try:
-                    print("Trying sent transactions to:", info_lst[i])
-                    sys.stdout.flush()
-                    sent = slist[i].transfer(args.txs_count, fee_amount=20)
-                    print(sent, "Transactions sent")
-                    sys.stdout.flush()
-                    time.sleep(args.delay)
+                    print("Trying sent transactions to:", info_lst[i], flush=True)
+                    if args.tps == True:
+                        start = time.time()
+                        sent = slist[i].transfer(args.txs_count, fee_amount=20)
+                        print(sent, "Transactions sent", flush = True)
+                        diff = time.time() - start
+                        if diff < 1.0:
+                          time.sleep(round((1.0 - diff),3))
+                    else:
+                        sent = slist[i].transfer(args.txs_count, fee_amount=20)
+                        print(sent, "Transactions sent")
+                        sys.stdout.flush()
+                        time.sleep(args.delay)
                     i=i+1
                 except Exception as e:
                     print("Caught exception during transaction sending")
