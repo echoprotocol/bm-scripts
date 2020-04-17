@@ -54,6 +54,7 @@ def set_options(parser):
         type=str, help="Address for connecting", default="172.17.0.2")
     parser.add_argument('-p', '--port', dest='port', action='store',
         type=int, help="Rpc port for connecting", default=8090)
+    parser.add_argument('-t', '--with_tps', action='store_true', help="Enable tps alerts")
 
 def main():
     t=None
@@ -74,6 +75,8 @@ def main():
     print("Connected to", args.address, args.port)
     t.run_check()
 
+    resolved_low_tps = True
+
     while True:
         tmp=check_nodes(args.num_nodes)
         diff=tmp-missed
@@ -91,7 +94,13 @@ def main():
         print(datetime.now().strftime("%H:%M:%S"), "current tps:", tps, "block num:", t.block_number, flush=True)
         
         if (tps < 10):
-            send_alert("[ALERT]: Low tps {} on server {}".format(tps, args.server_name), args.url)
+            if args.with_tps == True and resolved_low_tps == True:
+                send_alert("[ALERT]: Low tps {} on server {}".format(tps, args.server_name), args.url)
+                resolved_low_tps = False
+        else:
+            if resolved_low_tps == False:
+                resolved_low_tps = True
+                send_alert("[OK]: Resolved low tps {} on server {}".format(tps, args.server_name), args.url)
 
         if (len(missed) == args.num_nodes):
             break

@@ -45,6 +45,7 @@ def set_options(parser):
     parser.add_argument('-v', '--volume_dir', dest='volume_dir', action='store',
         type=str, help="Volume dir shared between host and containers", default="")
     parser.add_argument('-clv', '--clear_volume', action='store_true', help="Clear volume after previous run")
+    parser.add_argument('-t', '--with_tps', action='store_true', help="Enable tps alerts")
 
 def main():
     kill_alert()
@@ -71,7 +72,11 @@ def main():
         s.interrupt_sender()
 
     if args.url != "":
-        alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} >alerts.log 2>&1 &'
+        alert_cmd=''
+        if args.with_tps == True:
+            alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} -t >alerts.log 2>&1 &'
+        else:
+            alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} >alerts.log 2>&1 &'
         os.system(alert_cmd.format(url=args.url, num_nodes=args.node_count, sname=getpass.getuser()))
 
     if args.delay != 0:
