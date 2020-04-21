@@ -11,6 +11,7 @@ import psutil
 import json
 import os
 import echopy
+import threading
 
 def kill_sender():
     my_pid = os.getpid()
@@ -18,6 +19,29 @@ def kill_sender():
         if (proc.name() == "start_sender.py" and proc.pid != my_pid):
             print("Killing previous sender process")
             os.kill(proc.pid, signal.SIGTERM)
+
+sending = True
+def send(sender, args, info):
+    try:
+        while sending:
+            print("Trying sent transactions to:", info, flush=True)
+            if args.tps == True:
+                start = time.time()
+                sent = sender.transfer(args.txs_count, fee_amount=20)
+                print(sent, "Transactions sent", flush = True)
+                diff = time.time() - start
+                if diff < 1.0:
+                    time.sleep(round((1.0 - diff),3))
+            else:
+                sent = sender.transfer(args.txs_count, fee_amount=20)
+                print(sent, "Transactions sent", flush = True)
+                time.sleep(args.delay)
+    except Exception as e:
+        print("Caught exception during transaction sending", flush=True)
+        logging.error(traceback.format_exc())
+  
+slist=[]
+tlist=[]
 
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
@@ -31,6 +55,7 @@ def main():
         type=int, help="Number of accounts", required=True)
     parser.add_argument('-s', '--start_new', action='store_true', help="Start new sender instance without deletion previous")
     parser.add_argument('-t', '--tps', action='store_true', help="Enable adaptive sleep for constant tps")
+    parser.add_argument('-p', '--parallel', action='store_true', help="If specified, then sender will work concurrently")
     args = parser.parse_args()
     hosts_info=json.loads(args.hosts_info)
 
@@ -38,26 +63,39 @@ def main():
         kill_sender()
 
     start_port=8090
-    slist=[]
     info_lst=[]
     prev_num_nodes=0
 
     def signal_handler(sig, frame):
         print("\nCaught SIGINT:")
+        sending = False
         for s in slist:
             s.interrupt_sender()
         raise SystemExit("Exited from Ctrl-C handler")
     signal.signal(signal.SIGINT, signal_handler)
 
+    step = 0
+    for addr, count in hosts_info.items():
+        step = step + count
+
+    if step > args.account_num:
+        raise Exception("Number of nodes should be less or equal to initial accounts number!")
+
+    j = 0
     for addr, count in hosts_info.items():
         for i in range(count):
             try:
                 print("Trying connect to",addr,":",start_port+i)
                 sys.stdout.flush()
-                slist.append(Sender(addr, start_port+i, args.account_num, (i+prev_num_nodes)))
-                info_lst.append("Address : {}  Port : {}".format(addr, start_port+i))
+                s = Sender(addr, start_port+i, args.account_num, call_id = j, step = step)
+                info = "Address : {}  Port : {}".format(addr, start_port+i)
+                slist.append(s)
+                info_lst.append(info)
+                t=threading.Thread(target=send, args=(slist[j],args,info, ))
+                tlist.append(t)
                 print("Done")
-                sys.stdout.flush() 
+                sys.stdout.flush()
+                j = j + 1
             except ConnectionRefusedError as e:
                 logging.error(traceback.format_exc())
                 sys.stdout.flush()
@@ -66,35 +104,42 @@ def main():
         prev_num_nodes=prev_num_nodes+count
 
     if slist:
-        while True:
-            i=0
-            num=len(slist)
-            if num == 0:
-                break
-            while i < num:
-                try:
-                    print("Trying sent transactions to:", info_lst[i], flush=True)
-                    if args.tps == True:
-                        start = time.time()
-                        sent = slist[i].transfer(args.txs_count, fee_amount=20)
-                        print(sent, "Transactions sent", flush = True)
-                        diff = time.time() - start
-                        if diff < 1.0:
-                          time.sleep(round((1.0 - diff),3))
-                    else:
-                        sent = slist[i].transfer(args.txs_count, fee_amount=20)
-                        print(sent, "Transactions sent")
+        if args.parallel == False:
+            while True:
+                i=0
+                num=len(slist)
+                if num == 0:
+                    break
+                while i < num:
+                    try:
+                        print("Trying sent transactions to:", info_lst[i], flush=True)
+                        if args.tps == True:
+                            start = time.time()
+                            sent = slist[i].transfer(args.txs_count, fee_amount=20)
+                            print(sent, "Transactions sent", flush = True)
+                            diff = time.time() - start
+                            if diff < 1.0:
+                              time.sleep(round((1.0 - diff),3))
+                        else:
+                            sent = slist[i].transfer(args.txs_count, fee_amount=20)
+                            print(sent, "Transactions sent")
+                            sys.stdout.flush()
+                            time.sleep(args.delay)
+                        i=i+1
+                    except Exception as e:
+                        print("Caught exception during transaction sending")
                         sys.stdout.flush()
-                        time.sleep(args.delay)
-                    i=i+1
-                except Exception as e:
-                    print("Caught exception during transaction sending")
-                    sys.stdout.flush()
-                    logging.error(traceback.format_exc())
-                    sys.stdout.flush()
-                    del slist[i]
-                    del info_lst[i]
-                    num=num-1
+                        logging.error(traceback.format_exc())
+                        sys.stdout.flush()
+                        del slist[i]
+                        del info_lst[i]
+                        num=num-1
+        else:
+            for t in tlist:
+                t.daemon = True
+                t.start()
+            for t in tlist:
+                t.join()
 
 if __name__ == "__main__":
     try:

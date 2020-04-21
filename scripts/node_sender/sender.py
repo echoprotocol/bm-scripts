@@ -13,6 +13,7 @@ import json
 import os
 import threading
 import echopy
+import sys
 from websocket import create_connection
 
 from echopy import Echo
@@ -23,15 +24,20 @@ subscribe_callback_req = '{"method": "set_subscribe_callback", "params": [0, fal
 subscribe_dgpo_req = '{"method": "get_objects", "params": [["2.1.0"]], "id": 0}'
 tx_count_req = '{{"method": "get_block_tx_number", "params": [{block_id}], "id": 0}}'
 
+#network_req = '{"method": "call", "params": [1, "network_broadcast", []], "id": 0}'
+#broadcast_transaction = '{{"method": "call", "params": [2, "broadcast_transaction_with_callback", ["1", {tx}]], "jsonrpc": "2.0", "id": 0}}'
+
+# correct request to send by hands
+#mystring = '{"method": "call", "params": [2, "broadcast_transaction_with_callback", ["1", {"ref_block_num": 5, "ref_block_prefix": 3493691368, "expiration": "2020-04-16T14:20:49", "operations": [[31, {"fee": {"amount": 201, "asset_id": "1.3.0"}, "registrar": "1.2.11", "value": {"amount": 0, "asset_id": "1.3.0"}, "code": "4543484f0100000078104000000000000200000001060010400000000000250100002501000031c04885ff740c89c2803c17007404ffc0ebf4c38b57088b4e0831c039d175108b5708488b36488b3fcd1585c00f94c0c39041554989fd41544531e4554889f5534889f3514883fd017615488d75ff4c89ef4883ed02e8d7ffffff4901c4ebe54889d85a48d1e8486bc0fe4801d85b5d4c01e0415c415dc3534883ec3048c744241000000000488d5c2410c7442418000000004889dfcd6148c744242000000000bf00204000c744242800000000e84dffffff85c0741f89c289c7cd11be002040004889442420895424288b542428488b7c2420cd144c8d4424204889df4c89c6e82effffff488b7c24204885ff7402cd1384c0741d4c89c7cd4984c07414488b742420488d7c240fe824ffffff4889c7cd59488b7c24104885ff7402cd134883c4305bc3063200204000000000000400000004000000666962000d0000000000000000000000580140000000000000104000000000000020400000000000000000000000000000000000000000000010400000000000781040000000000032104000000000000430400000000000043040000000000008304000000000001410400000000000", "eth_accuracy": false, "extensions": []}]], "extensions": [], "signatures": ["b09b7441f8fc460b8b4f7fe284ef80a6640f8bcdc9a5eaae10f68460612de3f48e62bc34db92b757dd6e9c79519351a1be6e5940c04b746d5bbb0e35505e3202"]}]], "jsonrpc": "2.0", "id": 12}'
+
 class Sender(Base):
-    def __init__(self, node_url, port, account_num, call_id = 0):
+    def __init__(self, node_url, port, account_num, call_id = 0, step = 1):
         super().__init__(node_url, port)
         self.url="ws://{}:{}".format(node_url, port)
         self.call_id = call_id
-        self.index = call_id
         self.nathan = self.get_account("nathan", self.database_api_identifier)
         self.echo_nathan_id = self.nathan["id"]
-        self.account_count=int(self.echo_nathan_id.split('.')[-1]) - 6 # without nathan
+        self.account_num = account_num
         self.nathan_priv_key = NATHAN_PRIV
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
@@ -46,6 +52,10 @@ class Sender(Base):
         self.sws=None
         self.t=threading.Thread(target=self.processing_gpo)
         self.t.start()
+
+        self.step = step
+        self.index = call_id
+        self.to_id = 0
 
     def processing_gpo(self):
         try:
@@ -78,7 +88,6 @@ class Sender(Base):
             if self.lock.locked() == True:
                 self.lock.release()
             self.sws.close()
-            self.t.join()
         
     @staticmethod
     def seconds_to_iso(sec):
@@ -106,8 +115,9 @@ class Sender(Base):
         print("Started balance distribution")
         id="1.2.{}"
         op_lst=[]
-        bal = int(initial_balance / (self.account_count+1))
-        for i in range(self.account_count):
+        bal = int(initial_balance / (self.account_num))
+        nathan_id = int(self.echo_nathan_id.split('.')[-1])
+        for i in range(self.account_num-1):
             op=self.echo_ops.get_transfer_operation(echo = self.echo, from_account_id = self.echo_nathan_id,
                 amount = bal, to_account_id = id.format(i+6), signer = self.nathan_priv_key)
             ops = self.collect_operations(op, self.database_api_identifier)
@@ -126,7 +136,6 @@ class Sender(Base):
         print("Balance distribution - Done\n")
 
     def send_transaction_list(self, transaction_list, with_response = False):
-
         sign_transaction_list = []
 
         time_increment = 900
@@ -141,7 +150,7 @@ class Sender(Base):
             self.total_num_send += 1
             if (self.total_num_send % divider == 0):
                 self.lock.acquire()
-                divider = random.randint(100, 250)
+                divider = random.randint(100, 3500)
                 if self.prev_head != self.dynamic_global_chain_data['head_block_number']:
                     self.call_id = 0
                     self.prev_head=self.dynamic_global_chain_data['head_block_number']
@@ -151,7 +160,7 @@ class Sender(Base):
         for tr in sign_transaction_list:
             try:
                 self.echo_ops.broadcast(tr, with_response = with_response)
-                k += 1
+                k = k + 1
             except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
                 if "skip_transaction_dupe_check" in str(rpc_error):
                     print("Caught txs dupe")
@@ -165,41 +174,33 @@ class Sender(Base):
                 print("Sent ", k, " transactions")
         return k
 
+    def get_nextto_account(self, from_account, to_account):
+        to_account = to_account * (((to_account - (self.account_num)) & 0xffffffff) >> 31)
+        return to_account + (not (from_account ^ to_account))
+
     def transfer(self, transaction_count = 1, amount = 1, fee_amount=None):
         from_acc = "1.2.{}"
         to_acc = "1.2.{}"
-
-        a=6
-        d=self.account_count+6
-
-        transfer_amount = amount
-        if amount == 1:
-            transfer_amount = random.randint(self.index+1, self.index+50)
-        transaction_list = []
-
         n = 0
+        self.from_id = self.index 
+        self.to_id   = self.get_nextto_account(self.from_id, self.to_id)
+        transaction_list=[]
+        transfer_amount = 0
         while n != transaction_count:
-            b=self.from_id-1
-            c=self.from_id+1
-            numbers = list(range(a,b)) + list(range(c,d))
-            r = random.choice(numbers)
-
-            from_ = from_acc.format(self.from_id)
-            to_ = to_acc.format(r)
-
+            from_ = from_acc.format(self.from_id+6)
+            to_ = to_acc.format(self.to_id+6)
+            transfer_amount = transfer_amount + self.index + self.step
             transfer_operation = self.echo_ops.get_transfer_operation(echo = self.echo, from_account_id = from_,
-                amount = transfer_amount, to_account_id = to_, signer = self.private_keys[self.from_id-6])
+                amount = transfer_amount, to_account_id = to_, signer = self.private_keys[self.from_id])
 
             collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier, fee_amount=fee_amount)
             transaction_list.append(collected_operation)
             n += 1
-            if (self.from_id == self.account_count+6):
-                self.from_id = 6
-            else:
-                self.from_id += 1
-
+            if transfer_amount > 2047:
+                transfer_amount = 0 
+                self.to_id = self.get_nextto_account(self.from_id, self.to_id+1)
+        self.to_id = self.get_nextto_account(self.from_id, self.to_id+1)
         return self.send_transaction_list(transaction_list)
-
 
     def create_contract(self, x86_64_contract = True, value = 0, transaction_count = 1, fee_amount=None, with_response = False):
         if x86_64_contract is True:
@@ -208,14 +209,14 @@ class Sender(Base):
             code = self.ethereum_contract
 
         transaction_list = []
-
+        transfer_amount = 0
         n = 0
+        self.from_id=self.index
         while n != transaction_count:
-            numbers = list(range(6,self.account_count+6))
-            r = random.choice(numbers)
-            operation = self.echo_ops.get_contract_create_operation(echo = self.echo, registrar = "1.2.{}".format(r), bytecode = code,
-                                                                    value_amount = value, value_asset_id = self.echo_asset,
-                                                                    signer = self.private_keys[r-6])
+            transfer_amount = transfer_amount + self.index + self.step & 2047
+            operation = self.echo_ops.get_contract_create_operation(echo = self.echo, registrar = "1.2.{}".format(self.from_id+6), bytecode = code,
+                                                                    value_amount = transfer_amount, value_asset_id = self.echo_asset,
+                                                                    signer = self.private_keys[self.from_id])
             collected_operation = self.collect_operations(operation, self.database_api_identifier, fee_amount=fee_amount)
             transaction_list.append(collected_operation)
             n += 1
@@ -233,12 +234,13 @@ class Sender(Base):
 
         transaction_list = []
 
+        transfer_amount = 0
         n = 0
+        self.from_id=self.index
         while n != (transaction_count):
-            numbers = list(range(6,self.account_count+6))
-            r = random.choice(numbers)
-            operation = self.echo_ops.get_contract_call_operation(echo = self.echo, registrar = "1.2.{}".format(r),
-                                                              bytecode = code, callee = contract_id, signer = self.private_keys[r-6])
+            transfer_amount = (transfer_amount + self.index + self.step) & 2047
+            operation = self.echo_ops.get_contract_call_operation(echo = self.echo, registrar = "1.2.{}".format(self.from_id+6), value_amount = transfer_amount,
+                                                              bytecode = code, callee = contract_id, signer = self.private_keys[self.from_id])
             collected_operation = self.collect_operations(operation, self.database_api_identifier, fee_amount=fee_amount)
             transaction_list.append(collected_operation)
             n += 1
