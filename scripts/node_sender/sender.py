@@ -33,6 +33,7 @@ class Sender(Base):
         self.echo_nathan_id = self.nathan["id"]
         self.account_count=int(self.echo_nathan_id.split('.')[-1]) - 6 # without nathan
         self.nathan_priv_key = NATHAN_PRIV
+        self.accounts_private_keys = []
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
         self.ethereum_contract = self.get_byte_code("fib", "code", ethereum_contract = True)
@@ -80,6 +81,17 @@ class Sender(Base):
             self.sws.close()
             self.t.join()
         
+
+    def read_private_keys(self):
+        dirname=os.path.dirname(__file__)
+        file=dirname + "/../resources/private_keys.json"
+        with open(file, 'r') as f:
+            data= f.read()
+        data=json.loads(data)
+        for value in data.values():
+            self.accounts_private_keys.append(value)
+        self.account_count = len(data.values())
+
     @staticmethod
     def seconds_to_iso(sec):
         iso_result = datetime.fromtimestamp(sec, timezone.utc).replace(microsecond=0).isoformat()
@@ -165,38 +177,29 @@ class Sender(Base):
                 print("Sent ", k, " transactions")
         return k
 
-    def transfer(self, transaction_count = 1, amount = 1, fee_amount=None):
-        from_acc = "1.2.{}"
-        to_acc = "1.2.{}"
-
-        a=6
-        d=self.account_count+6
-
+    def transfer(self, transaction_count = 1, amount = 1):
         transfer_amount = amount
         if amount == 1:
             transfer_amount = random.randint(self.index+1, self.index+50)
         transaction_list = []
 
-        n = 0
-        while n != transaction_count:
-            b=self.from_id-1
-            c=self.from_id+1
-            numbers = list(range(a,b)) + list(range(c,d))
-            r = random.choice(numbers)
+        base_account = 6
 
-            from_ = from_acc.format(self.from_id)
-            to_ = to_acc.format(r)
+        for _ in range(transaction_count):
+            nathan_id = int(self.echo_nathan_id.split('.')[-1])
+            range_accounts = list(range(base_account, nathan_id))
+            r = random.choice(range_accounts)
 
-            transfer_operation = self.echo_ops.get_transfer_operation(echo = self.echo, from_account_id = from_,
-                amount = transfer_amount, to_account_id = to_, signer = self.private_keys[self.from_id-6])
+            _from = "1.2.{}".format(nathan_id)
+            _to = "1.2.{}".format(r)
 
-            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier, fee_amount=fee_amount)
+            transfer_operation = self.echo_ops.get_transfer_operation(
+                echo = self.echo, from_account_id = _from,
+                amount = transfer_amount, to_account_id = _to,
+                signer=self.nathan_priv_key)
+
+            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier)
             transaction_list.append(collected_operation)
-            n += 1
-            if (self.from_id == self.account_count+6):
-                self.from_id = 6
-            else:
-                self.from_id += 1
 
         return self.send_transaction_list(transaction_list)
 
@@ -215,8 +218,8 @@ class Sender(Base):
             r = random.choice(numbers)
             operation = self.echo_ops.get_contract_create_operation(echo = self.echo, registrar = "1.2.{}".format(r), bytecode = code,
                                                                     value_amount = value, value_asset_id = self.echo_asset,
-                                                                    signer = self.private_keys[r-6])
-            collected_operation = self.collect_operations(operation, self.database_api_identifier, fee_amount=fee_amount)
+                                                                    signer = self.accounts_private_keys[r-6])
+            collected_operation = self.collect_operations(operation, self.database_api_identifier)
             transaction_list.append(collected_operation)
             n += 1
 
@@ -238,8 +241,8 @@ class Sender(Base):
             numbers = list(range(6,self.account_count+6))
             r = random.choice(numbers)
             operation = self.echo_ops.get_contract_call_operation(echo = self.echo, registrar = "1.2.{}".format(r),
-                                                              bytecode = code, callee = contract_id, signer = self.private_keys[r-6])
-            collected_operation = self.collect_operations(operation, self.database_api_identifier, fee_amount=fee_amount)
+                                                              bytecode = code, callee = contract_id, signer = self.nathan_priv_key)
+            collected_operation = self.collect_operations(operation, self.accounts_private_keys[r-6])
             transaction_list.append(collected_operation)
             n += 1
 

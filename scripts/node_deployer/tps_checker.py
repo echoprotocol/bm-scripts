@@ -67,6 +67,7 @@ class tps_checker:
                     self.tps = self.collected_tx_number
                 else:
                     self.tps = self.collected_tx_number / ((end - start).seconds)
+                print(self.tps)
         except (json.decoder.JSONDecodeError, OSError) as e:
             if self.is_interrupted == False:
                 print("Caught exception in tps colletor thread:")

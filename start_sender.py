@@ -22,20 +22,19 @@ def kill_sender():
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     parser.add_argument('-hi', '--hosts_info', dest='hosts_info', action='store',
-        type=str, help="Host info in dictionary formar: {\"ip address\" : number of nodes}", default="", required=True)
+        type=str, help="Host info in dictionary format: {\"ip address\" : number of nodes}", default="", required=True)
     parser.add_argument('-txs', '--txs_count', dest='txs_count', action='store',
         type=int, help="Number of transactions", default=1)
     parser.add_argument('-d', '--delay', dest='delay', action='store',
         type=int, help="Delay in seconds between transfers", default=2)
-    parser.add_argument('-n', '--account_num', dest='account_num', action='store',
-        type=int, help="Number of accounts", required=True)
-    parser.add_argument('-s', '--start_new', action='store_true', help="Start new sender instance without deletion previous")
-    parser.add_argument('-t', '--tps', action='store_true', help="Enable adaptive sleep for constant tps")
+    parser.add_argument('-in', '--import_balance_nathan', dest='nathan_balance', action='store',
+        type=bool, help="Flag for import balance to nathan", default=False)
     args = parser.parse_args()
-    hosts_info=json.loads(args.hosts_info)
 
-    if args.start_new == False:
-        kill_sender()
+    hosts_info = json.loads(args.hosts_info)
+
+    # if args.start_new == False:
+    #     kill_sender()
 
     start_port=8090
     slist=[]
@@ -54,16 +53,21 @@ def main():
             try:
                 print("Trying connect to",addr,":",start_port+i)
                 sys.stdout.flush()
-                slist.append(Sender(addr, start_port+i, args.account_num, (i+prev_num_nodes)))
+                slist.append(Sender(addr, start_port+i, (i+prev_num_nodes)))
                 info_lst.append("Address : {}  Port : {}".format(addr, start_port+i))
                 print("Done")
-                sys.stdout.flush() 
+                sys.stdout.flush()
             except ConnectionRefusedError as e:
                 logging.error(traceback.format_exc())
                 sys.stdout.flush()
                 print(e)
                 sys.stdout.flush()
         prev_num_nodes=prev_num_nodes+count
+
+    if slist and args.nathan_balance:
+        slist[0].import_balance_to_nathan()
+
+    total = 0
 
     if slist:
         while True:
@@ -74,27 +78,24 @@ def main():
             while i < num:
                 try:
                     print("Trying sent transactions to:", info_lst[i], flush=True)
-                    if args.tps == True:
-                        start = time.time()
-                        sent = slist[i].transfer(args.txs_count, fee_amount=20)
-                        print(sent, "Transactions sent", flush = True)
-                        diff = time.time() - start
-                        if diff < 1.0:
-                          time.sleep(round((1.0 - diff),3))
-                    else:
-                        sent = slist[i].transfer(args.txs_count, fee_amount=20)
-                        print(sent, "Transactions sent")
-                        sys.stdout.flush()
-                        time.sleep(args.delay)
+                    sent = slist[i].transfer(args.txs_count)
+                    total += sent
+                    print(sent, "Transactions sent")
+                    sys.stdout.flush()
+                    time.sleep(args.delay)
                     i=i+1
                 except Exception as e:
                     print("Caught exception during transaction sending")
                     sys.stdout.flush()
+                    exit(1)
                     logging.error(traceback.format_exc())
                     sys.stdout.flush()
                     del slist[i]
                     del info_lst[i]
                     num=num-1
+                
+            if total % 1000 == 0:
+                print("Total transfers: ", total)
 
 if __name__ == "__main__":
     try:

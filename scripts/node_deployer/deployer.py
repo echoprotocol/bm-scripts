@@ -17,8 +17,8 @@ from ..utils.genesis_template import create_init_account, get_genesis_string
 from ..utils.utils import generate_keys
 
 COMMITTEE_COUNT=20
-NATHAN_PRIV="5JjHQ1GqTbqVZLdTB3QRqcUWA6LezqA65iPJbq5craE6MRc4u9K"
-NATHAN_PUB="ECHO5NaRTkq4uBAVGrZkD3jcTEdUxhxxJLU7hvt3p1zJyytc"
+NATHAN_PRIV="5K9VVTEUYevvwEhZfRYDWckh59tRkTeXrDzbzDJ2KyD8doKrGJT"
+NATHAN_PUB="ECHO6XS3BMVnEHAzo1PhHWt9vndrZn2P27tCbU9WdqCM8sJu"
 
 def simple_tar(path):
     f = tempfile.NamedTemporaryFile()
