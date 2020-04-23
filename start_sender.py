@@ -158,6 +158,12 @@ def parse_arguments():
         help="Enable adaptive sleep for constant tps",
     )
     parser.add_argument(
+        "-ibn",
+        "--import_balance_nathan",
+        action="store_true",
+        help="Flag for import balance to nathan",
+    )
+    parser.add_argument(
         "-p",
         "--parallel",
         action="store_true",
@@ -255,8 +261,8 @@ def main():
     args = parse_arguments()
     hosts_info = json.loads(args.hosts_info)
 
-    if args.start_new is False:
-        kill_sender()
+    # if args.start_new is False:
+    #     kill_sender()
 
     def signal_handler(sig, frame):
         print("\nCaught signal: ", sig, ":", frame)
@@ -277,6 +283,9 @@ def main():
     if not senders:
         print("\nList senders is empty", flush=True)
         sys.exit(1)
+
+    if args.nathan_balance:
+        senders[0].import_balance_to_nathan()
 
     if args.tx_type == 4 or args.tx_type == 5:
         send_tx(senders[0], args.tx_type, 1)

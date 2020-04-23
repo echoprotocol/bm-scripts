@@ -37,6 +37,7 @@ class Sender(Base):
         self.echo_nathan_id = self.nathan["id"]
         self.account_num = account_num
         self.nathan_priv_key = NATHAN_PRIV
+        self.accounts_private_keys = []
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code(
             "fib", "code", ethereum_contract=False
@@ -103,6 +104,16 @@ class Sender(Base):
             if self.lock.locked() == True:
                 self.lock.release()
             self.sws.close()
+
+    def read_private_keys(self):
+        dirname=os.path.dirname(__file__)
+        file=dirname + "/../resources/private_keys.json"
+        with open(file, 'r') as f:
+            data= f.read()
+        data=json.loads(data)
+        for value in data.values():
+            self.accounts_private_keys.append(value)
+        self.account_count = len(data.values())
 
     @staticmethod
     def seconds_to_iso(sec):
@@ -229,45 +240,30 @@ class Sender(Base):
 
         return k
 
-    def get_nextto_account(self, from_account, to_account):
-        to_account = to_account * (
-            ((to_account - self.account_num) & 0xFFFFFFFF) >> 31
-        )
-        return to_account + (not (from_account ^ to_account))
-
-    def get_next_value(self, value, increase_it):
-        value = value + (self.index + self.step*(self.sequence_num+1))*increase_it
-        increase_next = ((value - 16383) & 0xFFFFFFFF) >> 31
-        value = value * increase_next
-        return value, not(increase_next)
-
-    def transfer(self, transaction_count=1, amount=1, fee_amount=None):
-        from_acc = "1.2.{}"
-        to_acc = "1.2.{}"
-        transfer_delta = 1
-        n = 0
-        self.to_id = self.get_nextto_account(self.from_id, self.to_id)
+    def transfer(self, transaction_count = 1, amount = 1):
+        transfer_amount = amount
+        if amount == 1:
+            transfer_amount = random.randint(self.index+1, self.index+50)
         transaction_list = []
-        while n != transaction_count:
-            from_ = from_acc.format(self.from_id + 6)
-            to_ = to_acc.format(self.to_id + 6)
-            self.fee_delta, increase_transfer_value = self.get_next_value(self.fee_delta, True)
+
+        base_account = 6
+
+        for _ in range(transaction_count):
+            nathan_id = int(self.echo_nathan_id.split('.')[-1])
+            range_accounts = list(range(base_account, nathan_id))
+            r = random.choice(range_accounts)
+
+            _from = "1.2.{}".format(nathan_id)
+            _to = "1.2.{}".format(r)
 
             transfer_operation = self.echo_ops.get_transfer_operation(
-                echo=self.echo,
-                from_account_id=from_,
-                amount=self.transfer_amount+transfer_delta,
-                to_account_id=to_,
-                signer=self.private_keys[self.from_id],
-            )
-            collected_operation = self.collect_operations(
-                transfer_operation, self.database_api_identifier, fee_amount=fee_amount+self.fee_delta
-            )
+                echo = self.echo, from_account_id = _from,
+                amount = transfer_amount, to_account_id = _to,
+                signer=self.nathan_priv_key)
+
+            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier)
             transaction_list.append(collected_operation)
-            self.transfer_amount, increase_next_account = self.get_next_value(self.transfer_amount, increase_transfer_value)
-            self.to_id = self.to_id = self.get_nextto_account(self.from_id, self.to_id + 1*increase_next_account)
-            n += 1
-            
+
         return self.send_transaction_list(transaction_list)
 
     def create_contract(
