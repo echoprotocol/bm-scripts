@@ -9,6 +9,7 @@ import signal
 from datetime import datetime
 from scripts.node_deployer.tps_checker import tps_checker
 from sys import maxsize
+import logging
 
 def send_alert(msg, url):
     print("Sending alert with msg:", msg, flush=True)

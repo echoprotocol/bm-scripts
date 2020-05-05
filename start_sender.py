@@ -12,6 +12,7 @@ import json
 import os
 import echopy
 import threading
+import logging
 
 def kill_sender():
     my_pid = os.getpid()
@@ -27,19 +28,31 @@ def send(sender, args, info):
             print("Trying sent transactions to:", info, flush=True)
             if args.tps == True:
                 start = time.time()
-                sent = sender.transfer(args.txs_count, fee_amount=20)
+                sent = send_tx(sender, args)
                 print(sent, "Transactions sent", flush = True)
                 diff = time.time() - start
                 if diff < 1.0:
                     time.sleep(round((1.0 - diff),3))
             else:
-                sent = sender.transfer(args.txs_count, fee_amount=20)
+                sent = send_tx(sender, args)
                 print(sent, "Transactions sent", flush = True)
                 time.sleep(args.delay)
     except Exception as e:
         print("Caught exception during transaction sending", flush=True)
         logging.error(traceback.format_exc())
-  
+
+def send_tx(sender, args):
+    if args.tx_type == 1:
+        return sender.transfer(args.txs_count, fee_amount=20)
+    elif args.tx_type == 2:
+        return sender.create_contract(transaction_count=args.txs_count, x86_64_contract=False, fee_amount=395)
+    elif args.tx_type == 3:
+        return sender.create_contract(transaction_count=args.txs_count, x86_64_contract=True, fee_amount=201)
+    elif args.tx_type == 4:
+        return sender.call_contract(contract_id="1.11.0", transaction_count=args.txs_count, x86_64_contract=False, fee_amount=244)
+    elif args.tx_type == 5:
+        return sender.call_contract(contract_id="1.11.0", transaction_count=args.txs_count, x86_64_contract=True, fee_amount=201)
+ 
 slist=[]
 tlist=[]
 
@@ -53,6 +66,8 @@ def main():
         type=int, help="Delay in seconds between transfers", default=2)
     parser.add_argument('-n', '--account_num', dest='account_num', action='store',
         type=int, help="Number of accounts", required=True)
+    parser.add_argument('-tt', '--tx_type', dest='tx_type', action='store',
+        type=int, help="Transaction type: 1 - transfer, 2 - create_evm, 3 - create_x86, 4 - call_evm, 5 - call_x86", default=1)
     parser.add_argument('-s', '--start_new', action='store_true', help="Start new sender instance without deletion previous")
     parser.add_argument('-t', '--tps', action='store_true', help="Enable adaptive sleep for constant tps")
     parser.add_argument('-p', '--parallel', action='store_true', help="If specified, then sender will work concurrently")
@@ -104,6 +119,11 @@ def main():
         prev_num_nodes=prev_num_nodes+count
 
     if slist:
+        if args.tx_type == 4:
+            slist[0].create_contract(x86_64_contract = False, with_response = True)
+        elif args.tx_type == 5:
+            slist[0].create_contract(x86_64_contract = True, with_response = True)
+
         if args.parallel == False:
             while True:
                 i=0
@@ -115,13 +135,13 @@ def main():
                         print("Trying sent transactions to:", info_lst[i], flush=True)
                         if args.tps == True:
                             start = time.time()
-                            sent = slist[i].transfer(args.txs_count, fee_amount=20)
+                            sent = send_tx(slist[i], args)
                             print(sent, "Transactions sent", flush = True)
                             diff = time.time() - start
                             if diff < 1.0:
                               time.sleep(round((1.0 - diff),3))
                         else:
-                            sent = slist[i].transfer(args.txs_count, fee_amount=20)
+                            sent = send_tx(slist[i], args)
                             print(sent, "Transactions sent")
                             sys.stdout.flush()
                             time.sleep(args.delay)
