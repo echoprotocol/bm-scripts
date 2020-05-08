@@ -263,13 +263,13 @@ genesis_temp = """
     ],
     "echorand_config": {
       "_time_generate": 1000,
-      "_time_net_1mb": 2000,
-      "_time_net_256b": 750,
+      "_time_net_1mb": 1500,
+      "_time_net_256b": 400,
       "_creator_count": 5,
       "_verifier_count": 12,
       "_ok_threshold": 9,
       "_max_bba_steps": 12,
-      "_round_attempts": 3
+      "_round_attempts": 5
     },
     "sidechain_config": {
       "eth_contract_address": "02b8125e5e2b60f7b92057bd0b719d338658a3b8",
