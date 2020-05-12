@@ -86,6 +86,7 @@ def main():
                     i=i+1
                 except Exception as e:
                     print("Caught exception during transaction sending")
+                    print(e)
                     sys.stdout.flush()
                     exit(1)
                     logging.error(traceback.format_exc())

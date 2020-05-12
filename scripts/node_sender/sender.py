@@ -6,7 +6,6 @@ from random import randrange
 
 from .base import Base
 from ..node_deployer.deployer import NATHAN_PRIV
-from ..utils.utils import generate_keys
 initial_balance = 1000000000000000
 import random
 import json
@@ -38,7 +37,6 @@ class Sender(Base):
         self.x86_64_contract = self.get_byte_code("fib", "code", ethereum_contract = False)
         self.ethereum_contract = self.get_byte_code("fib", "code", ethereum_contract = True)
         self.total_num_send = 0
-        self.private_keys = generate_keys(account_num)[0]
         self.from_id=6
         self.prev_head=self.dynamic_global_chain_data['head_block_number']
 
@@ -137,7 +135,7 @@ class Sender(Base):
         self.echo_ops.broadcast(tx, with_response=True)
         print("Balance distribution - Done\n")
 
-    def send_transaction_list(self, transaction_list, with_response = False):
+    def send_transaction_list(self, transaction_list, with_response = None):
 
         sign_transaction_list = []
 
@@ -162,14 +160,14 @@ class Sender(Base):
         k = 0
         for tr in sign_transaction_list:
             try:
-                self.echo_ops.broadcast(tr, with_response = with_response)
+                self.echo_ops.broadcast(tr, with_response)
                 k += 1
             except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
                 if "skip_transaction_dupe_check" in str(rpc_error):
                     print("Caught txs dupe")
-                elif "is_known_transaction" in  str(rpc_error):
+                elif "is_known_transaction" in str(rpc_error):
                     print("The same transaction exists in chain")
-                elif "pending_txs" in  str(rpc_error):
+                elif "pending_txs" in str(rpc_error):
                     print("The same transaction exists in pending txs")
                 else:
                     print(str(rpc_error))

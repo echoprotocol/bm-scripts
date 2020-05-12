@@ -29,7 +29,7 @@ class EchoOperation:
                                     balance_to_claim="1.8.0", value_asset_id="1.3.0", extensions=None, signer=None):
         if extensions is None:
             extensions = []
-        operation_id = echo.config.operation_ids.BALANCE_CLAIM
+        operation_id = self.operation_ids.BALANCE_CLAIM
         balance_claim_operation_props = self.get_operation_json("balance_claim_operation")
         balance_claim_operation_props["fee"].update({"amount": fee_amount, "asset_id": fee_asset_id})
         balance_claim_operation_props.update(
@@ -88,7 +88,7 @@ class EchoOperation:
 
     def sign(self, tx, chain_id, dynamic_global_chain_data):
         tx._finalized = True
-
+        tx._chain_id = chain_id
         tx._ref_block_num = dynamic_global_chain_data['head_block_number'] & 0xffff
 
         def bytes_to_int(bytes):
