@@ -2,7 +2,6 @@
 
 import argparse
 from scripts.node_deployer.deployer import deployer
-from scripts.node_sender.sender import Sender
 import json
 import signal
 import traceback
@@ -64,12 +63,6 @@ def main():
                 image=args.image, start_node=args.server_num, host_addresses=hosts_info,
                 remote=True, committee_count=args.committee_count, volume_dir = args.volume_dir, clear_volume = args.clear_volume)
     d.wait_nodes()
-
-    if args.server_num == 0 and args.clear_volume == True:
-        s=Sender(d.addresses[0], d.rpc_ports[0], d.committee_count)
-        s.import_balance_to_nathan()
-        s.balance_distribution()
-        s.interrupt_sender()
 
     if args.url != "":
         alert_cmd=''
