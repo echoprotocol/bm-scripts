@@ -41,6 +41,8 @@ def set_options(parser):
         type=str, help="Host info in dictionary formar: {\"ip address\" : number of nodes}", default="", required=True)
     parser.add_argument('-u', '--url', dest='url', action='store',
         type=str, help="Url for alert script", default="")
+    parser.add_argument('-ti', '--time_interval', action='store', dest='time_interval',
+        type=int, help="Time interval between tps measures (needed for alerts, in seconds)", default=300, required=True)
     parser.add_argument('-v', '--volume_dir', dest='volume_dir', action='store',
         type=str, help="Volume dir shared between host and containers", default="")
     parser.add_argument('-clv', '--clear_volume', action='store_true', help="Clear volume after previous run")
@@ -67,10 +69,10 @@ def main():
     if args.url != "":
         alert_cmd=''
         if args.with_tps == True:
-            alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} -t >alerts.log 2>&1 &'
+            alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} -ti {time_interval} -t >alerts.log 2>&1 &'
         else:
-            alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} >alerts.log 2>&1 &'
-        os.system(alert_cmd.format(url=args.url, num_nodes=args.node_count, sname=getpass.getuser()))
+            alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} -ti {time_interval} >alerts.log 2>&1 &'
+        os.system(alert_cmd.format(url=args.url, num_nodes=args.node_count, sname=getpass.getuser(), time_interval=args.time_interval))
 
     if args.delay != 0:
         print("Delay in test", args.delay,"ms")
