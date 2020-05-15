@@ -85,7 +85,7 @@ def main():
         dest="hosts_info",
         action="store",
         type=str,
-        help='Host info in dictionary formar: {"ip address" : number of nodes}',
+        help='Host info in dictionary format: {"ip address" : number of nodes}',
         default="",
         required=True,
     )
