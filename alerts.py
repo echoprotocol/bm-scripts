@@ -56,7 +56,7 @@ def set_options(parser):
     parser.add_argument('-p', '--port', dest='port', action='store',
         type=int, help="Rpc port for connecting", default=8090)
     parser.add_argument('-ti', '--time_interval', action='store', dest='time_interval',
-        type=int, help="Time interval between tps measures (in seconds)", default=300, required=True)
+        type=int, help="Time interval between tps measures (in seconds)", default=300)
     parser.add_argument('-t', '--with_tps', action='store_true', help="Enable tps alerts")
 
 def main():

@@ -39,3 +39,14 @@ There are some files for deploying nodes on different servers and measure some n
 ### Core dumps
 
 For generating core dumps, you should write core pattern by next command on your host: `echo '/tmp/core.%t.%e.%p.%P' | sudo tee /proc/sys/kernel/core_pattern`
+
+### Debugging
+
+For getting just backtrace you can use one of next methods:
+
+* Use `docker exec -it echonode{n} /bin/bash` to get access to container and run `gdb -p $PID command`.  
+* You can get access to process inside container from your host using nsenter: `sudo nsenter -t $HPID -m -p gdb -p $PID`, where `$HPID` - it is host pid and `$PID` - it is pid inside container.  
+
+This methods give you backtrace, also there is available to put breakpoints, but no source code available. For fully debuggin use next method:
+
+* run `gdb /path/to/echonode` and inside gdb run next command `(gdb) target remote | docker exec -i echonode{n} gdbserver - --attach $PID`, this give you opportunity to debug process inside container with source code.
