@@ -443,17 +443,14 @@ genesis_temp = """
 
 
 def create_init_account(name, active, echorand):
-    init_account_template = {
-        "name":"",
-        "active_key":"",
-        "echorand_key":""
-    }
-    init_account_template["name"]=name
-    init_account_template["active_key"]=active
-    init_account_template["echorand_key"]=echorand
+    init_account_template = {"name": "", "active_key": "", "echorand_key": ""}
+    init_account_template["name"] = name
+    init_account_template["active_key"] = active
+    init_account_template["echorand_key"] = echorand
     return init_account_template
+
 
 def get_genesis_string(accounts):
     g = json.loads(genesis_temp)
-    g["initial_accounts"]=accounts
+    g["initial_accounts"] = accounts
     return json.dumps(g)

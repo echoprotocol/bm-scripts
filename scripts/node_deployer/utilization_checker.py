@@ -4,8 +4,9 @@ import os
 import time
 import psutil
 import threading
-from .deployer import client 
+from .deployer import client
 from datetime import datetime
+
 
 class utilization_checker:
     def __init__(self, addresses = [], ports = [], names = [], volume_dir=""):
@@ -24,10 +25,12 @@ class utilization_checker:
         base = "--p2p-endpoint={}:{}"
         for i in range(len(self.addrs)):
             for proc in psutil.process_iter():
-                if (proc.name() == "echo_node" and
-                    base.format(self.addrs[i], self.ports[i]) in proc.cmdline()):
-                        self.pids.append(proc.pid)
-                        self.nums.append(i)
+                if (
+                    proc.name() == "echo_node"
+                    and base.format(self.addrs[i], self.ports[i]) in proc.cmdline()
+                ):
+                    self.pids.append(proc.pid)
+                    self.nums.append(i)
 
     def prepare_files(self):
         dir = os.path.dirname(os.path.abspath(__file__))
@@ -41,7 +44,7 @@ class utilization_checker:
             os.makedirs(dir)
 
         for name in self.names:
-            self.files.append(open(dir+name+".txt","w+"))
+            self.files.append(open(dir + name + ".txt", "w+"))
 
     def collect_stats(self):
         base = "du -sb "+self.volume_dir+"/echorand_test_datadir/{}/blockchain"

@@ -10,15 +10,17 @@ import os
 import getpass
 import psutil
 
+
 def kill_alert():
     for proc in psutil.process_iter():
-        if (proc.name() == "python3" and "./alerts.py" in proc.cmdline()):
+        if proc.name() == "python3" and "./alerts.py" in proc.cmdline():
             print("Killing previous alert process\n")
             os.kill(proc.pid, signal.SIGTERM)
 
+
 def kill_pumba():
     for proc in psutil.process_iter():
-        if (proc.name() == "pumba"):
+        if proc.name() == "pumba":
             print("Killing previous pumba process\n")
             os.kill(proc.pid, signal.SIGKILL)
 
@@ -63,19 +65,29 @@ def main():
     def signal_handler(sig, frame):
         print("\nCaught SIGINT:")
         raise SystemExit("Exited from Ctrl-C handler")
+
     signal.signal(signal.SIGINT, signal_handler)
 
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     set_options(parser)
     args = parser.parse_args()
-    hosts_info=json.loads(args.hosts_info)
-    d = deployer(node_count=args.node_count, echo_bin=args.echo_bin, pumba_bin=args.pumba_bin,
-                image=args.image, start_node=args.server_num, host_addresses=hosts_info,
-                remote=True, committee_count=args.committee_count, volume_dir = args.volume_dir, clear_volume = args.clear_volume)
+    hosts_info = json.loads(args.hosts_info)
+    d = deployer(
+        node_count=args.node_count,
+        echo_bin=args.echo_bin,
+        pumba_bin=args.pumba_bin,
+        image=args.image,
+        start_node=args.server_num,
+        host_addresses=hosts_info,
+        remote=True,
+        committee_count=args.committee_count,
+        volume_dir=args.volume_dir,
+        clear_volume=args.clear_volume,
+    )
     d.wait_nodes()
 
     if args.url != "":
-        alert_cmd=''
+        alert_cmd = ""
         if args.with_tps == True:
             alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} -ti {time_interval} -t >alerts.log 2>&1 &'
         else:
@@ -83,7 +95,7 @@ def main():
         os.system(alert_cmd.format(url=args.url, num_nodes=args.node_count, sname=getpass.getuser(), time_interval=args.time_interval))
 
     if args.delay != 0:
-        print("Delay in test", args.delay,"ms")
+        print("Delay in test", args.delay, "ms")
         d.run_pumba((" ".join(str(name) for name in d.node_names)), args.delay, 0)
 
     if args.with_uc == True:

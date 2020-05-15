@@ -3,6 +3,7 @@ import re
 NAME_MIN_LENGTH = 1
 NAME_MAX_LENGTH = 63
 
+
 class TypeValidator(object):
     id_regex = re.compile(r"^(0|([1-9]\d*\.)){2}(0|([1-9]\d*))$")
     account_id_regex = re.compile(r"^1\.2\.(0|[1-9]\d*)$")
@@ -51,8 +52,10 @@ class TypeValidator(object):
     hex_regex = re.compile("^[0-9a-fA-F]+")
     bytecode_regex = re.compile(r"^[\da-fA-F]{8}([\da-fA-F]{64})*$")
     vote_id_type_regex = re.compile(r"^[0-3]:[0-9]+")
-    iso8601_regex = re.compile(r"^(-?(?:[1-9][0-9]*)?[0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01]"
-                               r"[0-9]):([0-5][0-9]):([0-5][0-9])(\.[0-9]+)?(Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$")
+    iso8601_regex = re.compile(
+        r"^(-?(?:[1-9][0-9]*)?[0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01]"
+        r"[0-9]):([0-5][0-9]):([0-5][0-9])(\.[0-9]+)?(Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$"
+    )
     base58_regex = re.compile(r"^[1-9A-HJ-NP-Za-km-z]+$")
     wif_regex = re.compile(r"^5[HJK][1-9A-Za-z][^OIl]{48}$")
 
@@ -96,6 +99,8 @@ class TypeValidator(object):
         ref = value.split(".")
 
         for label in ref:
-            if not bool(re.match(r"^[a-z][a-z0-9-]*[a-z\d]$", label)) or bool(re.match(r".*--.*", label)):
+            if not bool(re.match(r"^[a-z][a-z0-9-]*[a-z\d]$", label)) or bool(
+                re.match(r".*--.*", label)
+            ):
                 return False
         return True
