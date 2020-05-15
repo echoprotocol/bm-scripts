@@ -6,6 +6,7 @@ scripts/resources/genesis.json
 
 # Temporary
 tmp/
+results/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -22,6 +22,12 @@ def kill_pumba():
             print("Killing previous pumba process\n")
             os.kill(proc.pid, signal.SIGKILL)
 
+def kill_uchecker():
+    for proc in psutil.process_iter():
+        if (proc.name() == "python3" and "./start_uchecker.py" in proc.cmdline()):
+            print("Killing previous uchecker process\n")
+            os.kill(proc.pid, signal.SIGKILL)
+
 def set_options(parser):
     parser.add_argument('-e', '--echo_bin', action='store', dest='echo_bin',
         type=str, help="Path to echo_node binary, should be statically compiled!", required=True)
@@ -47,10 +53,12 @@ def set_options(parser):
         type=str, help="Volume dir shared between host and containers", default="")
     parser.add_argument('-clv', '--clear_volume', action='store_true', help="Clear volume after previous run")
     parser.add_argument('-t', '--with_tps', action='store_true', help="Enable tps alerts")
+    parser.add_argument('-uc', '--with_uc', action='store_true', help="Start utilization checker")
 
 def main():
     kill_alert()
     kill_pumba()
+    kill_uchecker()
 
     def signal_handler(sig, frame):
         print("\nCaught SIGINT:")
@@ -77,6 +85,11 @@ def main():
     if args.delay != 0:
         print("Delay in test", args.delay,"ms")
         d.run_pumba((" ".join(str(name) for name in d.node_names)), args.delay, 0)
+
+    if args.with_uc == True:
+        uchecker_cmd="nohup python3 ./start_uchecker.py -n {num_nodes} -v {vol_dir} >uchecker.log 2>&1 &"
+        os.system(uchecker_cmd.format(num_nodes=args.node_count, vol_dir=args.volume_dir))
+
 
 if __name__ == "__main__":
     try:
