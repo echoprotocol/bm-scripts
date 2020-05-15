@@ -42,7 +42,7 @@ def set_options(parser):
     parser.add_argument('-u', '--url', dest='url', action='store',
         type=str, help="Url for alert script", default="")
     parser.add_argument('-ti', '--time_interval', action='store', dest='time_interval',
-        type=int, help="Time interval between tps measures (needed for alerts, in seconds)", default=300, required=True)
+        type=int, help="Time interval between tps measures (needed for alerts, in seconds)", default=300)
     parser.add_argument('-v', '--volume_dir', dest='volume_dir', action='store',
         type=str, help="Volume dir shared between host and containers", default="")
     parser.add_argument('-clv', '--clear_volume', action='store_true', help="Clear volume after previous run")
