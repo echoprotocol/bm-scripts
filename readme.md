@@ -1,4 +1,14 @@
-### How to run script:  
+### Install dependencies:
+
+For install dependencies run `bash install.sh`.  
+Fix docker permissions with next commands:  
+`sudo groupadd docker`  
+`sudo usermod -aG docker $USER`  
+`newgrp docker`  
+
+Build ubuntu_delay image with: `docker build -t ubuntu_delay ./scripts/resources`
+
+### How to run script: 
 
 There are some suites in test:
 
