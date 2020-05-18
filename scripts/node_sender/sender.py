@@ -17,8 +17,6 @@ import echopy
 import sys
 from websocket import create_connection
 
-from echopy import Echo
-
 login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}'
 database_req = '{"method": "call", "params": [1, "database", []], "id": 0}'
 subscribe_callback_req = (
@@ -27,12 +25,8 @@ subscribe_callback_req = (
 subscribe_dgpo_req = '{"method": "get_objects", "params": [["2.1.0"]], "id": 0}'
 tx_count_req = '{{"method": "get_block_tx_number", "params": [{block_id}], "id": 0}}'
 
-# network_req = '{"method": "call", "params": [1, "network_broadcast", []], "id": 0}'
-# broadcast_transaction = '{{"method": "call", "params": [2, "broadcast_transaction_with_callback", ["1", {tx}]], "jsonrpc": "2.0", "id": 0}}'
-
-# correct request to send by hands
-# mystring = '{"method": "call", "params": [2, "broadcast_transaction_with_callback", ["1", {"ref_block_num": 5, "ref_block_prefix": 3493691368, "expiration": "2020-04-16T14:20:49", "operations": [[31, {"fee": {"amount": 201, "asset_id": "1.3.0"}, "registrar": "1.2.11", "value": {"amount": 0, "asset_id": "1.3.0"}, "code": "4543484f0100000078104000000000000200000001060010400000000000250100002501000031c04885ff740c89c2803c17007404ffc0ebf4c38b57088b4e0831c039d175108b5708488b36488b3fcd1585c00f94c0c39041554989fd41544531e4554889f5534889f3514883fd017615488d75ff4c89ef4883ed02e8d7ffffff4901c4ebe54889d85a48d1e8486bc0fe4801d85b5d4c01e0415c415dc3534883ec3048c744241000000000488d5c2410c7442418000000004889dfcd6148c744242000000000bf00204000c744242800000000e84dffffff85c0741f89c289c7cd11be002040004889442420895424288b542428488b7c2420cd144c8d4424204889df4c89c6e82effffff488b7c24204885ff7402cd1384c0741d4c89c7cd4984c07414488b742420488d7c240fe824ffffff4889c7cd59488b7c24104885ff7402cd134883c4305bc3063200204000000000000400000004000000666962000d0000000000000000000000580140000000000000104000000000000020400000000000000000000000000000000000000000000010400000000000781040000000000032104000000000000430400000000000043040000000000008304000000000001410400000000000", "eth_accuracy": false, "extensions": []}]], "extensions": [], "signatures": ["b09b7441f8fc460b8b4f7fe284ef80a6640f8bcdc9a5eaae10f68460612de3f48e62bc34db92b757dd6e9c79519351a1be6e5940c04b746d5bbb0e35505e3202"]}]], "jsonrpc": "2.0", "id": 12}'
-
+network_req = '{"method": "call", "params": [1, "network_broadcast", []], "id": 0}'
+broadcast_transaction = '{{"method": "call", "params": [2, "broadcast_transaction", [{tx}]], "jsonrpc": "2.0", "id": 0}}'
 
 class Sender(Base):
     def __init__(self, node_url, port, account_num, call_id=0, step=1):
@@ -64,6 +58,15 @@ class Sender(Base):
         self.step = step
         self.index = call_id
         self.to_id = 0
+
+        self.nws = create_connection(self.url)
+        self.login_network_api()
+
+    def login_network_api(self):
+        self.nws.send(login_req)
+        self.nws.recv()
+        self.nws.send(network_req)
+        self.nws.recv()
 
     def processing_gpo(self):
         try:
@@ -196,22 +199,24 @@ class Sender(Base):
                     self.prev_head = self.dynamic_global_chain_data["head_block_number"]
                 self.lock.release()
 
-        k = 0
         for tr in sign_transaction_list:
-            try:
-                self.echo_ops.broadcast(tr, with_response=with_response)
-                k = k + 1
-            except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
-                if "skip_transaction_dupe_check" in str(rpc_error):
+            self.nws.send(broadcast_transaction.format(tx=json.dumps(tr.transaction_object.json())))
+
+        k = 0
+        for i in range(len(sign_transaction_list)):
+            recv = json.loads(self.nws.recv())
+            k = k + 1
+            if "error" in recv:
+                if "skip_transaction_dupe_check" in str(recv["error"]):
                     print("Caught txs dupe")
-                elif "is_known_transaction" in str(rpc_error):
+                elif "is_known_transaction" in  str(recv["error"]):
                     print("The same transaction exists in chain")
-                elif "pending_txs" in str(rpc_error):
+                elif "pending_txs" in  str(recv["error"]):
                     print("The same transaction exists in pending txs")
                 else:
-                    print(str(rpc_error))
-            if k % 1000 == 0:
-                print("Sent ", k, " transactions")
+                    print(str(recv["error"]))
+                k = k - 1
+
         return k
 
     def get_nextto_account(self, from_account, to_account):
