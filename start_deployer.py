@@ -89,10 +89,17 @@ def main():
     if args.url != "":
         alert_cmd = ""
         if args.with_tps == True:
-            alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} -ti {time_interval} -t >alerts.log 2>&1 &'
+            alert_cmd = 'nohup python3 ./alerts.py -u "{url}" -n {num_nodes} -sn {sname} -ti {time_interval} -t >alerts.log 2>&1 &'
         else:
-            alert_cmd='nohup python3 ./alerts.py -u \"{url}\" -n {num_nodes} -sn {sname} -ti {time_interval} >alerts.log 2>&1 &'
-        os.system(alert_cmd.format(url=args.url, num_nodes=args.node_count, sname=getpass.getuser(), time_interval=args.time_interval))
+            alert_cmd = 'nohup python3 ./alerts.py -u "{url}" -n {num_nodes} -sn {sname} -ti {time_interval} >alerts.log 2>&1 &'
+        os.system(
+            alert_cmd.format(
+                url=args.url,
+                num_nodes=args.node_count,
+                sname=getpass.getuser(),
+                time_interval=args.time_interval,
+            )
+        )
 
     if args.delay != 0:
         print("Delay in test", args.delay, "ms")

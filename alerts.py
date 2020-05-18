@@ -51,19 +51,66 @@ def check_nodes(num_nodes):
 
 
 def set_options(parser):
-    parser.add_argument('-u', '--url', action='store', dest='url',
-        type=str, help="Url where alert should be sent", required=True)
-    parser.add_argument('-sn', '--server_name', action='store', dest='server_name',
-        type=str, help="Name of server", default="", required=True)
-    parser.add_argument('-n', '--num_nodes', action='store', dest='num_nodes',
-        type=int, help="Number of nodes which started on host", default="", required=True)
-    parser.add_argument('-a', '--address', dest='address', action='store',
-        type=str, help="Address for connecting", default="172.17.0.2")
-    parser.add_argument('-p', '--port', dest='port', action='store',
-        type=int, help="Rpc port for connecting", default=8090)
-    parser.add_argument('-ti', '--time_interval', action='store', dest='time_interval',
-        type=int, help="Time interval between tps measures (in seconds)", default=300)
-    parser.add_argument('-t', '--with_tps', action='store_true', help="Enable tps alerts")
+    parser.add_argument(
+        "-u",
+        "--url",
+        action="store",
+        dest="url",
+        type=str,
+        help="Url where alert should be sent",
+        required=True,
+    )
+    parser.add_argument(
+        "-sn",
+        "--server_name",
+        action="store",
+        dest="server_name",
+        type=str,
+        help="Name of server",
+        default="",
+        required=True,
+    )
+    parser.add_argument(
+        "-n",
+        "--num_nodes",
+        action="store",
+        dest="num_nodes",
+        type=int,
+        help="Number of nodes which started on host",
+        default="",
+        required=True,
+    )
+    parser.add_argument(
+        "-a",
+        "--address",
+        dest="address",
+        action="store",
+        type=str,
+        help="Address for connecting",
+        default="172.17.0.2",
+    )
+    parser.add_argument(
+        "-p",
+        "--port",
+        dest="port",
+        action="store",
+        type=int,
+        help="Rpc port for connecting",
+        default=8090,
+    )
+    parser.add_argument(
+        "-ti",
+        "--time_interval",
+        action="store",
+        dest="time_interval",
+        type=int,
+        help="Time interval between tps measures (in seconds)",
+        default=300,
+    )
+    parser.add_argument(
+        "-t", "--with_tps", action="store_true", help="Enable tps alerts"
+    )
+
 
 def main():
     t = None
@@ -102,12 +149,19 @@ def main():
             )
             break
 
-        t.collected_tx_number=0
+        t.collected_tx_number = 0
         time.sleep(args.time_interval)
-        tps=t.collected_tx_number/args.time_interval
-        print(datetime.now().strftime("%H:%M:%S"), "current tps:", tps, "block num:", t.block_number, flush=True)
-        
-        if (tps < 10):
+        tps = t.collected_tx_number / args.time_interval
+        print(
+            datetime.now().strftime("%H:%M:%S"),
+            "current tps:",
+            tps,
+            "block num:",
+            t.block_number,
+            flush=True,
+        )
+
+        if tps < 10:
             if args.with_tps == True and resolved_low_tps == True:
                 send_alert(
                     "[ALERT]: Low tps {} on server {}".format(tps, args.server_name),
