@@ -54,7 +54,6 @@ class deployer:
         self.private_keys=[]
         self.public_keys=[]
         self.account_names=[]
-        self.host_addresses=host_addresses
         self.start_node=start_node
 
         self.pumba_bin = pumba_bin
@@ -63,6 +62,7 @@ class deployer:
         self.image = image
         self.pumba_started = False
         self.host_ip = self.get_host_ip()
+        self.host_addresses=self.remove_my_host(host_addresses)
 
         self.port = 13375
         self.rpc_port = 8090
@@ -380,3 +380,8 @@ class deployer:
                 echo_folder=self.vol_folder+base.format(i)
                 os.makedirs(echo_folder)
                 copy(config_file, echo_folder)
+
+    def remove_my_host(self, hosts_info):
+        copy = dict(hosts_info)
+        del copy[self.host_ip]
+        return copy
