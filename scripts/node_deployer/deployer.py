@@ -383,5 +383,5 @@ class deployer:
 
     def remove_my_host(self, hosts_info):
         copy = dict(hosts_info)
-        del copy[self.host_ip]
+        copy.pop(self.host_ip, None)
         return copy
