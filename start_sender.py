@@ -179,12 +179,13 @@ def parse_arguments():
 
     return parser.parse_args()
 
+
 def config_parse(section):
     """ Parse hosts config for start sender """
 
     parser = configparser.ConfigParser()
 
-    parser.read('scripts/resources/host_config.ini')
+    parser.read("scripts/resources/host_config.ini")
 
     if not parser.sections():
         raise Exception("Config parse read exception, path to config incorrect")
@@ -192,6 +193,7 @@ def config_parse(section):
     hosts_info = parser._sections[section]
 
     return {k: int(v) for k, v in hosts_info.items()}
+
 
 def connect_to_peers(hosts_info, number_of_accounts):
     """ Setting up a connection to nodes """
@@ -284,7 +286,9 @@ def main():
     args = parse_arguments()
 
     if not args.hosts_info:
-        hosts_info = config_parse("private_network" if args.private_network else "echo_servers")
+        hosts_info = config_parse(
+            "private_network" if args.private_network else "echo_servers"
+        )
     else:
         hosts_info = json.loads(args.hosts_info)
 
