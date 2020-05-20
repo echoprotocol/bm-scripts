@@ -40,7 +40,7 @@ class EchoOperation:
     ):
         if extensions is None:
             extensions = []
-        operation_id = echo.config.operation_ids.BALANCE_CLAIM
+        operation_id = self.operation_ids.BALANCE_CLAIM
         balance_claim_operation_props = self.get_operation_json(
             "balance_claim_operation"
         )
@@ -168,7 +168,7 @@ class EchoOperation:
 
     def sign(self, tx, chain_id, dynamic_global_chain_data):
         tx._finalized = True
-
+        tx._chain_id = chain_id
         tx._ref_block_num = dynamic_global_chain_data["head_block_number"] & 0xFFFF
 
         def bytes_to_int(bytes):

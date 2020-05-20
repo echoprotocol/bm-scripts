@@ -6,7 +6,6 @@ from random import randrange
 
 from .base import Base
 from ..node_deployer.deployer import NATHAN_PRIV
-from ..utils.utils import generate_keys
 
 initial_balance = 1000000000000000
 import random
@@ -46,11 +45,7 @@ class Sender(Base):
             "fib", "code", ethereum_contract=True
         )
         self.total_num_send = 0
-        self.private_keys = generate_keys(account_num)[0]
-        self.prev_head = self.dynamic_global_chain_data["head_block_number"]
-
         self.is_interrupted = False
-        self.lock = threading.Lock()
         self.sws = None
         self.t = threading.Thread(target=self.processing_gpo)
         self.t.start()
@@ -187,7 +182,7 @@ class Sender(Base):
         self.echo_ops.broadcast(tx, with_response=True)
         print("Balance distribution - Done\n")
 
-    def send_transaction_list(self, transaction_list, with_response=False):
+    def send_transaction_list(self, transaction_list, with_response=None):
         sign_transaction_list = []
 
         time_increment = 900
