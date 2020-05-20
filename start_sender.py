@@ -4,6 +4,8 @@
 Sender transactions for Echo node
 """
 
+import collections
+import configparser
 import argparse
 import time
 import traceback
@@ -98,7 +100,6 @@ def parse_arguments():
         type=str,
         help='Host info in dictionary format: {"ip address" : number of nodes}',
         default="",
-        required=True,
     )
     parser.add_argument(
         "-txs",
@@ -116,7 +117,7 @@ def parse_arguments():
         action="store",
         type=int,
         help="Delay in seconds between transfers",
-        default=2,
+        default=0,
     )
     parser.add_argument(
         "-n",
@@ -161,17 +162,36 @@ def parse_arguments():
         "-ibn",
         "--import_balance_nathan",
         action="store_true",
-        help="Flag for import balance to nathan",
+        help="Enable import balance to nathan",
     )
     parser.add_argument(
-        "-p",
-        "--parallel",
+        "-mp",
+        "--multiprocess",
         action="store_true",
-        help="If specified, then sender will work concurrently",
+        help="If specified, then sender will work multiprocessing",
+    )
+    parser.add_argument(
+        "-pn",
+        "--private_network",
+        action="store_true",
+        help="Enable sender for private network",
     )
 
     return parser.parse_args()
 
+def config_parse(section):
+    """ Parse hosts config for start sender """
+
+    parser = configparser.ConfigParser()
+
+    parser.read('scripts/resources/host_config.ini')
+
+    if not parser.sections():
+        raise Exception("Config parse read exception, path to config incorrect")
+
+    hosts_info = parser._sections[section]
+
+    return {k: int(v) for k, v in hosts_info.items()}
 
 def connect_to_peers(hosts_info, number_of_accounts):
     """ Setting up a connection to nodes """
@@ -185,6 +205,7 @@ def connect_to_peers(hosts_info, number_of_accounts):
         for index in range(count_nodes):
             try:
                 print("Trying connect to", addr, ":", start_port + index, flush=True)
+
                 sender = Sender(
                     addr,
                     start_port + index,
@@ -192,9 +213,11 @@ def connect_to_peers(hosts_info, number_of_accounts):
                     call_id=sender_id,
                     step=count_nodes,
                 )
-                info = "Address : {}  Port : {}".format(addr, start_port + index)
                 senders.append(sender)
+
+                info = "Address : {}  Port : {}".format(addr, start_port + index)
                 info_nodes.append(info)
+
                 print("Done", flush=True)
 
                 sender_id = sender_id + 1
@@ -220,7 +243,7 @@ def send(args, sender, info):
         else:
             sent = send_tx(sender, args.tx_type, args.txs_count)
             print(sent, "Transactions sent", flush=True)
-            time.sleep(10)
+            time.sleep(args.delay)
 
 
 def run_sender(args, senders, info_nodes):
@@ -246,7 +269,7 @@ def run_sender(args, senders, info_nodes):
 def run_sender_with_subprocess(args, senders, info_nodes, number_of_subprocesses):
     """ Run some senders to send transactions with multiprocessing """
 
-    print("Start in parallel")
+    print("Start in multiprocessing")
 
     processes = []
     for _ in range(number_of_subprocesses):
@@ -259,7 +282,11 @@ def main():
     """ Main function for start sender """
 
     args = parse_arguments()
-    hosts_info = json.loads(args.hosts_info)
+
+    if not args.hosts_info:
+        hosts_info = config_parse("private_network" if args.private_network else "echo_servers")
+    else:
+        hosts_info = json.loads(args.hosts_info)
 
     if args.start_new is False:
         kill_sender()
@@ -272,7 +299,7 @@ def main():
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    count_nodes = sum(hosts_info.values())
+    count_nodes = sum(int(hosts_info[host]) for host in hosts_info)
     if count_nodes > args.account_num:
         raise Exception(
             "Number of nodes should be less or equal to initial accounts number!"
@@ -290,7 +317,7 @@ def main():
     if args.tx_type == 4 or args.tx_type == 5:
         send_tx(senders[0], args.tx_type, 1)
 
-    if args.parallel is False:
+    if args.multiprocess is False:
         run_sender(args, senders, info_nodes)
     else:
         run_sender_with_subprocess(args, senders, info_nodes, 3)
