@@ -1,5 +1,6 @@
 import json
 
+
 class Receiver(object):
     def __init__(self, web_socket):
         super().__init__()
@@ -8,7 +9,9 @@ class Receiver(object):
     @staticmethod
     def get_positive_result(response, print_log):
         if "result" not in response:
-            raise Exception("Need result, but received:\n{}".format(json.dumps(response, indent=4)))
+            raise Exception(
+                "Need result, but received:\n{}".format(json.dumps(response, indent=4))
+            )
         return response
 
     @staticmethod
@@ -16,7 +19,6 @@ class Receiver(object):
         if print_log:
             print("Error received:\n{}".format(json.dumps(response, indent=4)))
         return response
-
 
     def get_response(self, id_response, negative, print_log):
         response = json.loads(self.web_socket.recv())

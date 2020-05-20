@@ -5,9 +5,12 @@ from websocket import create_connection
 import json
 import threading
 
-login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}';
+login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}'
 database_req = '{"method": "call", "params": [1, "database", []], "id": 0}'
-pending_callback = '{"method": "set_pending_transaction_callback", "params": ["0"], "id": 0}'
+pending_callback = (
+    '{"method": "set_pending_transaction_callback", "params": ["0"], "id": 0}'
+)
+
 
 class propagation_checker:
     def __init__(self, addr, port):
@@ -16,7 +19,7 @@ class propagation_checker:
         self.ws = create_connection(url)
         self.login_api()
         self.time = 0.0
-        
+
     def login_api(self):
         self.ws.send(login_req)
         self.ws.recv()
@@ -29,7 +32,10 @@ class propagation_checker:
             self.ws.recv()
             while self.is_interrupted == False:
                 response = json.loads(self.ws.recv())
-                if "params" in response and tx._signatures == response['params'][1][0]['signatures']:
+                if (
+                    "params" in response
+                    and tx._signatures == response["params"][1][0]["signatures"]
+                ):
                     self.time = time.time()
                     break
         except:

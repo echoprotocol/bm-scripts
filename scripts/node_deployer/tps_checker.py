@@ -9,9 +9,12 @@ import logging
 
 login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}'
 database_req = '{"method": "call", "params": [1, "database", []], "id": 0}'
-subscribe_callback_req = '{"method": "set_subscribe_callback", "params": [0, false], "id": 0}'
+subscribe_callback_req = (
+    '{"method": "set_subscribe_callback", "params": [0, false], "id": 0}'
+)
 subscribe_dgpo_req = '{"method": "get_objects", "params": [["2.1.0"]], "id": 0}'
 tx_count_req = '{{"method": "get_block_tx_number", "params": [{block_id}], "id": 0}}'
+
 
 class tps_checker:
     block_number = 0
@@ -26,7 +29,7 @@ class tps_checker:
         self.is_interrupted = False
         self.ws = create_connection(url)
         self.login_api()
-        
+
     def login_api(self):
         self.ws.send(login_req)
         self.ws.recv()
@@ -44,24 +47,31 @@ class tps_checker:
     def collect_tps(self):
         try:
             response = ""
-            while self.collected_tx_number < self.sent_tx_number and self.is_interrupted == False:
+            while (
+                self.collected_tx_number < self.sent_tx_number
+                and self.is_interrupted == False
+            ):
                 receive = self.ws.recv()
                 if "method" in receive:
                     response = json.loads(receive)
-                    block_id = response['params'][1][0][0]['head_block_id']
-                    tps_checker.block_number = response['params'][1][0][0]['head_block_number']
+                    block_id = response["params"][1][0][0]["head_block_id"]
+                    tps_checker.block_number = response["params"][1][0][0][
+                        "head_block_number"
+                    ]
                     self.ws.send(tx_count_req.format(block_id=block_id))
                 else:
                     response_tx = json.loads(receive)
-                    self.collected_tx_number =  self.collected_tx_number + int(response_tx['result'])
+                    self.collected_tx_number = self.collected_tx_number + int(
+                        response_tx["result"]
+                    )
                     print("Collected txs -", self.collected_tx_number, flush=True)
                     if self.collected_tx_number != 0 and self.start_time == "":
-                        self.start_time = response['params'][1][0][0]['time']
+                        self.start_time = response["params"][1][0][0]["time"]
 
             if self.is_interrupted == False:
-                self.end_time = response['params'][1][0][0]['time']
-                start = datetime.strptime(self.start_time, '%Y-%m-%dT%H:%M:%S')
-                end = datetime.strptime(self.end_time, '%Y-%m-%dT%H:%M:%S')
+                self.end_time = response["params"][1][0][0]["time"]
+                start = datetime.strptime(self.start_time, "%Y-%m-%dT%H:%M:%S")
+                end = datetime.strptime(self.end_time, "%Y-%m-%dT%H:%M:%S")
                 diff = (end - start).seconds
                 if diff == 0:
                     self.tps = self.collected_tx_number
