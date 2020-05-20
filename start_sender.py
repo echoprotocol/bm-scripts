@@ -1,8 +1,8 @@
+#!/usr/bin/python3
+
 """
 Sender transactions for Echo node
 """
-
-#!/usr/bin/python3
 
 import argparse
 import time
@@ -12,6 +12,7 @@ import signal
 import sys
 import json
 import os
+import multiprocessing
 
 import psutil
 from scripts.node_sender.sender import Sender
@@ -219,6 +220,8 @@ def send(args, sender, info):
 def run_sender(args, senders, info_nodes):
     """ Run sender to send transactions """
 
+    print("Run sender")
+
     while not senders:
         for index in range(senders):
             try:
@@ -234,10 +237,16 @@ def run_sender(args, senders, info_nodes):
                 del info_nodes[index]
 
 
-def run_sender_with_subprocess():
+def run_sender_with_subprocess(args, senders, info_nodes, number_of_subprocesses):
     """ Run some senders to send transactions with subprocess """
 
-    pass
+    print("Start in parallel")
+
+    processes = []
+    for _ in range(number_of_subprocesses):
+        p = multiprocessing.Process(target=run_sender, args=(args, senders, info_nodes))
+        processes.append(p)
+        p.start()
 
 
 def main():
@@ -266,8 +275,8 @@ def main():
     senders, info_nodes = connect_to_peers(hosts_info, args.account_num)
 
     if not senders:
-        print("List senders is empty", flush=True)
-        sys.exit(0)
+        print("\nList senders is empty", flush=True)
+        sys.exit(1)
 
     if args.tx_type == 4 or args.tx_type == 5:
         send_tx(senders[0], args.tx_type, 1)
@@ -275,7 +284,7 @@ def main():
     if args.parallel is False:
         run_sender(args, senders, info_nodes)
     else:
-        run_sender_with_subprocess()
+        run_sender_with_subprocess(args, senders, info_nodes, 3)
 
 
 if __name__ == "__main__":
