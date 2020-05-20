@@ -9,7 +9,7 @@ from datetime import datetime
 
 
 class utilization_checker:
-    def __init__(self, addresses = [], ports = [], names = [], volume_dir=""):
+    def __init__(self, addresses=[], ports=[], names=[], volume_dir=""):
         self.addrs = addresses
         self.ports = ports
         self.names = names
@@ -39,7 +39,10 @@ class utilization_checker:
             os.makedirs(dir)
 
         dir = dir + "/{}/".format(os.getpid())
-        print("uchecker results will be placed at \"/results/%d/\"" % os.getpid(), flush=True)
+        print(
+            'uchecker results will be placed at "/results/%d/"' % os.getpid(),
+            flush=True,
+        )
         if not os.path.exists(dir):
             os.makedirs(dir)
 
@@ -47,28 +50,33 @@ class utilization_checker:
             self.files.append(open(dir + name + ".txt", "w+"))
 
     def collect_stats(self):
-        base = "du -sb "+self.volume_dir+"/echorand_test_datadir/{}/blockchain"
+        base = "du -sb " + self.volume_dir + "/echorand_test_datadir/{}/blockchain"
         names = [self.names[i] for i in self.nums]
         print("Collection statistics for", names)
         self.is_running = True
         for file in self.files:
-            file.write("time,       rssize,      vmsize,      cpu,     dbsize,    x86size,    evmsize\n\n")
+            file.write(
+                "time,       rssize,      vmsize,      cpu,     dbsize,    x86size,    evmsize\n\n"
+            )
 
         try:
-            while (self.is_running):
+            while self.is_running:
                 for i, pid in zip(self.nums, self.pids):
                     process = psutil.Process(pid)
                     rssize = process.memory_info().rss
                     vmsize = process.memory_info().vms
                     cpu = process.cpu_percent(interval=1)
-                    bytes = os.popen(base.format(self.names[i])+"/database").read()
-                    dbsize = bytes.split('\t')[0]
-                    bytes = os.popen(base.format(self.names[i])+"/x86_vm").read()
-                    x86size = bytes.split('\t')[0]
-                    bytes = os.popen(base.format(self.names[i])+"/evm").read()
-                    evmsize = bytes.split('\t')[0]
+                    bytes = os.popen(base.format(self.names[i]) + "/database").read()
+                    dbsize = bytes.split("\t")[0]
+                    bytes = os.popen(base.format(self.names[i]) + "/x86_vm").read()
+                    x86size = bytes.split("\t")[0]
+                    bytes = os.popen(base.format(self.names[i]) + "/evm").read()
+                    evmsize = bytes.split("\t")[0]
                     t = datetime.now().strftime("%H:%M:%S")
-                    self.files[i].write("%s   %d    %d   %f   %s      %s        %s\n" % (t, rssize, vmsize, cpu, dbsize, x86size, evmsize))
+                    self.files[i].write(
+                        "%s   %d    %d   %f   %s      %s        %s\n"
+                        % (t, rssize, vmsize, cpu, dbsize, x86size, evmsize)
+                    )
                     self.files[i].flush()
                 time.sleep(20)
         except (FileNotFoundError, psutil._exceptions.NoSuchProcess) as e:

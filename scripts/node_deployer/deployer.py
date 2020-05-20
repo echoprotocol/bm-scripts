@@ -46,21 +46,34 @@ client = docker.from_env()
 
 
 class deployer:
-    def __init__(self, echo_bin="", pumba_bin="", node_count=2, image="",\
-                 conn_type=connect_type.all_to_all, host_addresses=dict(), remote=False, start_node=0, account_info_args="", committee_count=20, volume_dir = "", clear_volume = True):
-        self.delayed_nodes=[]
-        self.node_names=[]
-        self.inverse_delayed_nodes=[]
-        self.addresses=[]
-        self.ports=[]
-        self.rpc_ports=[]
-        self.seed_node_args=[]
-        self.account_info_args=[]
-        self.launch_strs=[]
-        self.private_keys=[]
-        self.public_keys=[]
-        self.account_names=[]
-        self.start_node=start_node
+    def __init__(
+        self,
+        echo_bin="",
+        pumba_bin="",
+        node_count=2,
+        image="",
+        conn_type=connect_type.all_to_all,
+        host_addresses=dict(),
+        remote=False,
+        start_node=0,
+        account_info_args="",
+        committee_count=20,
+        volume_dir="",
+        clear_volume=True,
+    ):
+        self.delayed_nodes = []
+        self.node_names = []
+        self.inverse_delayed_nodes = []
+        self.addresses = []
+        self.ports = []
+        self.rpc_ports = []
+        self.seed_node_args = []
+        self.account_info_args = []
+        self.launch_strs = []
+        self.private_keys = []
+        self.public_keys = []
+        self.account_names = []
+        self.start_node = start_node
 
         self.pumba_bin = pumba_bin
         self.echo_bin = echo_bin
@@ -68,7 +81,7 @@ class deployer:
         self.image = image
         self.pumba_started = False
         self.host_ip = self.get_host_ip()
-        self.host_addresses=self.remove_my_host(host_addresses)
+        self.host_addresses = self.remove_my_host(host_addresses)
 
         self.port = 13375
         self.rpc_port = 8090
