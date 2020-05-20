@@ -12,7 +12,7 @@ import signal
 import sys
 import json
 import os
-import multiprocessing
+from multiprocessing import Process
 
 import psutil
 from scripts.node_sender.sender import Sender
@@ -220,7 +220,7 @@ def send(args, sender, info):
         else:
             sent = send_tx(sender, args.tx_type, args.txs_count)
             print(sent, "Transactions sent", flush=True)
-            time.sleep(args.delay)
+            time.sleep(10)
 
 
 def run_sender(args, senders, info_nodes):
@@ -228,8 +228,8 @@ def run_sender(args, senders, info_nodes):
 
     print("Run sender")
 
-    while not senders:
-        for index in range(senders):
+    while senders:
+        for index, _ in enumerate(senders):
             try:
                 send(args, senders[index], info_nodes[index])
             except Exception as err:
@@ -244,15 +244,15 @@ def run_sender(args, senders, info_nodes):
 
 
 def run_sender_with_subprocess(args, senders, info_nodes, number_of_subprocesses):
-    """ Run some senders to send transactions with subprocess """
+    """ Run some senders to send transactions with multiprocessing """
 
     print("Start in parallel")
 
     processes = []
     for _ in range(number_of_subprocesses):
-        p = multiprocessing.Process(target=run_sender, args=(args, senders, info_nodes))
-        processes.append(p)
-        p.start()
+        sender_process = Process(target=run_sender, args=(args, senders, info_nodes))
+        processes.append(sender_process)
+        sender_process.start()
 
 
 def main():
@@ -261,8 +261,8 @@ def main():
     args = parse_arguments()
     hosts_info = json.loads(args.hosts_info)
 
-    # if args.start_new is False:
-    #     kill_sender()
+    if args.start_new is False:
+        kill_sender()
 
     def signal_handler(sig, frame):
         print("\nCaught signal: ", sig, ":", frame)
@@ -284,7 +284,7 @@ def main():
         print("\nList senders is empty", flush=True)
         sys.exit(1)
 
-    if args.nathan_balance:
+    if args.import_balance_nathan is True:
         senders[0].import_balance_to_nathan()
 
     if args.tx_type == 4 or args.tx_type == 5:

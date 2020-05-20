@@ -36,7 +36,7 @@ class Sender(Base):
         self.echo_nathan_id = self.nathan["id"]
         self.account_num = account_num
         self.nathan_priv_key = NATHAN_PRIV
-        self.accounts_private_keys = []
+        self.account_private_keys = []
         self.echo_acc_2 = "1.2.6"
         self.x86_64_contract = self.get_byte_code(
             "fib", "code", ethereum_contract=False
@@ -107,7 +107,7 @@ class Sender(Base):
             data= f.read()
         data=json.loads(data)
         for value in data.values():
-            self.accounts_private_keys.append(value)
+            self.account_private_keys.append(value)
         self.account_count = len(data.values())
 
     @staticmethod
@@ -235,7 +235,7 @@ class Sender(Base):
 
         return k
 
-    def transfer(self, transaction_count = 1, amount = 1):
+    def transfer(self, transaction_count = 1, amount = 1, fee_amount=None):
         transfer_amount = amount
         if amount == 1:
             transfer_amount = random.randint(self.index+1, self.index+50)
@@ -256,7 +256,7 @@ class Sender(Base):
                 amount = transfer_amount, to_account_id = _to,
                 signer=self.nathan_priv_key)
 
-            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier)
+            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier, fee_amount=fee_amount)
             transaction_list.append(collected_operation)
 
         return self.send_transaction_list(transaction_list)
@@ -285,7 +285,7 @@ class Sender(Base):
                 bytecode=code,
                 value_amount=self.transfer_amount + transfer_delta,
                 value_asset_id=self.echo_asset,
-                signer=self.private_keys[self.from_id],
+                signer=self.account_private_keys[self.from_id],
             )
             collected_operation = self.collect_operations(
                 operation, self.database_api_identifier, fee_amount=fee_amount+self.fee_delta
@@ -324,7 +324,7 @@ class Sender(Base):
                 value_amount=self.transfer_amount + transfer_delta,
                 bytecode=code,
                 callee=contract_id,
-                signer=self.private_keys[self.from_id],
+                signer=self.account_private_keys[self.from_id],
             )
             collected_operation = self.collect_operations(
                 operation, self.database_api_identifier, fee_amount=fee_amount+self.fee_delta
