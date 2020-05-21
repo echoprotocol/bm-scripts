@@ -22,6 +22,7 @@ from scripts.node_sender.base import Base
 
 def kill_sender():
     """ Kill sender process by ID """
+
     my_pid = os.getpid()
     for proc in psutil.process_iter():
         if proc.name() == "start_sender.py" and proc.pid != my_pid:
@@ -150,12 +151,6 @@ def parse_arguments():
         help="Enable adaptive sleep for constant tps",
     )
     parser.add_argument(
-        "-ibn",
-        "--import_balance_nathan",
-        action="store_true",
-        help="Enable import balance to nathan",
-    )
-    parser.add_argument(
         "-mp",
         "--multiprocess",
         dest="multiprocess",
@@ -174,7 +169,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def config_parse(section):
+def host_config_parse(section):
     """ Parse hosts config for start sender """
 
     parser = configparser.ConfigParser()
@@ -190,15 +185,20 @@ def config_parse(section):
 def validate_count_nodes(hosts_info):
     """ Validation arguments hosts info with number of accounts """
 
-    address, _ = hosts_info[0]
-    base = Base(address, 8090)
-    number_of_accounts = base.get_account_count()
+    address = next(iter(hosts_info))
 
-    count_nodes = sum(int(hosts_info[host]) for host in hosts_info)
-    if count_nodes > number_of_accounts:
-        raise Exception(
-            "Number of nodes should be less or equal to initial accounts number!"
-        )
+    try:
+        base = Base(address, 8090)
+
+        number_of_accounts = base.get_account_count()
+        count_nodes = sum(int(hosts_info[host]) for host in hosts_info)
+        if count_nodes > number_of_accounts:
+            raise Exception(
+                "Number of nodes should be less or equal to initial accounts number!"
+            )
+    except ConnectionRefusedError as err:
+        logging.error(traceback.format_exc())
+        print(err, flush=True)
 
 
 def connect_to_peers(hosts_info):
@@ -295,7 +295,7 @@ def main():
     args = parse_arguments()
 
     if not args.hosts_info:
-        hosts_info = config_parse(
+        hosts_info = host_config_parse(
             "private_network" if args.private_network else "echo_servers"
         )
     else:
@@ -319,9 +319,6 @@ def main():
     if not senders:
         print("\nList senders is empty", flush=True)
         sys.exit(1)
-
-    if args.import_balance_nathan is True:
-        senders[0].import_balance_to_nathan()
 
     if args.tx_type == 4 or args.tx_type == 5:
         send_tx(senders[0], args.tx_type, 1)

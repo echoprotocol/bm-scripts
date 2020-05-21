@@ -24,9 +24,19 @@ def main():
         help="Specify port for sender",
         default="",
     )
+    parser.add_argument(
+        "-pn",
+        "--private_network",
+        action="store_true",
+        help="Enable sender for private network",
+    )
     args = parser.parse_args()
 
     s = Sender(args.address, args.port)
+
+    if args.private_network is True:
+        s.private_network()
+
     s.balance_distribution()
     s.interrupt_sender()
 

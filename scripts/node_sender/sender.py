@@ -2,13 +2,15 @@ import time
 from datetime import timezone, datetime
 from math import ceil
 from calendar import timegm
-from random import randrange
 
 from .base import Base
-from ..utils.utils import NATHAN_PRIV
-from ..utils.utils import generate_keys
 
-initial_balance = 1000000000000000
+from ..utils.utils import generate_keys
+from ..utils.utils import seconds_to_iso
+from ..utils.utils import iso_to_seconds
+
+import logging
+import traceback
 import random
 import json
 import os
@@ -31,21 +33,26 @@ broadcast_transaction = '{{"method": "call", "params": [2, "broadcast_transactio
 class Sender(Base):
     def __init__(self, node_url, port, account_num, call_id=0, step=1, sequence_num = 0):
         super().__init__(node_url, port)
-        self.url = "ws://{}:{}".format(node_url, port)
+
         self.call_id = call_id
+        self.step = step
+        self.index = call_id
+
+        self.from_id = 6
+        self.to_id = 0
+
+        self.account_num = (
+            self.get_account_count() - 6
+        )  # 6 - Count reserved Account IDs with special meaning
+        self.generate_private_keys()
+
         self.nathan = self.get_account("nathan", self.database_api_identifier)
         self.echo_nathan_id = self.nathan["id"]
-        self.account_num = self.get_account_count()
-        self.nathan_priv_key = NATHAN_PRIV
-        self.account_private_keys = []
-        self.echo_acc_2 = "1.2.6"
-        self.x86_64_contract = self.get_byte_code(
-            "fib", "code", ethereum_contract=False
-        )
-        self.ethereum_contract = self.get_byte_code(
-            "fib", "code", ethereum_contract=True
-        )
+        self.INITIAL_BALANCE = 1000000000000000
+
         self.total_num_send = 0
+        self.prev_head = self.dynamic_global_chain_data["head_block_number"]
+
         self.is_interrupted = False
         self.sws = None
         self.t = threading.Thread(target=self.processing_gpo)
@@ -68,10 +75,12 @@ class Sender(Base):
         self.nws.recv()
         self.nws.send(network_req)
         self.nws.recv()
+    def __del__(self):
+        self.interrupt_sender()
 
     def processing_gpo(self):
         try:
-            self.sws = create_connection(self.url)
+            self.sws = create_connection(self.node_url)
             self.sws.send(login_req)
             self.sws.recv()
             self.sws.send(database_req)
@@ -97,31 +106,33 @@ class Sender(Base):
     def interrupt_sender(self):
         self.is_interrupted = True
         if self.sws is not None:
-            if self.lock.locked() == True:
+            if self.lock.locked() is True:
                 self.lock.release()
             self.sws.close()
 
-    def read_private_keys(self):
-        dirname=os.path.dirname(__file__)
-        file=dirname + "/../resources/private_keys.json"
-        with open(file, 'r') as f:
-            data= f.read()
-        data=json.loads(data)
+    def generate_private_keys(self):
+        self.private_keys = generate_keys(self.account_num)[0]
+        self.nathan_priv_key = self.private_keys[-1]
+
+    @staticmethod
+    def private_keys_parse():
+        """ Parse private keys for private network """
+
+        keys = []
+
+        dirname = os.path.dirname(__file__)
+        file = dirname + "/../resources/private_keys.json"
+        with open(file, "r") as f:
+            data = f.read()
+        data = json.loads(data)
         for value in data.values():
-            self.account_private_keys.append(value)
-        self.account_count = len(data.values())
+            keys.append(value)
 
-    @staticmethod
-    def seconds_to_iso(sec):
-        iso_result = (
-            datetime.fromtimestamp(sec, timezone.utc).replace(microsecond=0).isoformat()
-        )
-        return iso_result[: iso_result.rfind("+")]
+        return keys
 
-    @staticmethod
-    def iso_to_seconds(iso):
-        timeformat = "%Y-%m-%dT%H:%M:%S%Z"
-        return ceil(timegm(time.strptime((iso + "UTC"), timeformat)))
+    def private_network(self):
+        self.private_keys = self.private_keys_parse()
+        self.nathan_priv_key = self.private_keys[-1]
 
     def check_from_id(self):
         if self.from_id < self.account_num:
@@ -136,7 +147,7 @@ class Sender(Base):
             self.echo,
             self.echo_nathan_id,
             nathan_public_key,
-            initial_balance,
+            self.INITIAL_BALANCE,
             self.nathan_priv_key,
         )
         collected_operation = self.collect_operations(
@@ -156,31 +167,32 @@ class Sender(Base):
 
     def balance_distribution(self):
         print("Started balance distribution")
-        id = "1.2.{}"
-        op_lst = []
-        bal = int(initial_balance / (self.account_num))
-        nathan_id = int(self.echo_nathan_id.split(".")[-1])
-        for i in range(self.account_num - 1):
+
+        operations = []
+
+        distributed_balance = int(self.INITIAL_BALANCE / (self.account_num))
+
+        to_id = "1.2.{}"
+        for offset in range(self.account_num - 1):
             op = self.echo_ops.get_transfer_operation(
                 echo=self.echo,
                 from_account_id=self.echo_nathan_id,
-                amount=bal,
-                to_account_id=id.format(i + 6),
+                to_account_id=to_id.format(offset + 6),
+                amount=distributed_balance,
                 signer=self.nathan_priv_key,
             )
-            ops = self.collect_operations(op, self.database_api_identifier)
-            op_lst.append(ops[0])
-        now_iso = self.seconds_to_iso(datetime.now(timezone.utc).timestamp())
-        now_seconds = self.iso_to_seconds(now_iso)
-        expiration_time = self.seconds_to_iso(now_seconds + 300 + self.call_id)
+            operations.append(self.collect_operations(op, self.database_api_identifier))
 
-        tx = self.echo.create_transaction()
-        for operation in op_lst:
-            tx.add_operation(name=operation[0], props=operation[1])
-            tx.add_signer(operation[2])
-        tx.expiration = expiration_time
-        self.echo_ops.sign(tx, self.chain_id, self.dynamic_global_chain_data)
-        self.echo_ops.broadcast(tx, with_response=True)
+        self.echo_ops.broadcast(
+            self.echo_ops.get_sign_transaction(
+                echo=self.echo,
+                list_operations=operations,
+                chain_id=self.chain_id,
+                dynamic_global_chain_data=self.dynamic_global_chain_data,
+            ),
+            with_response=True,
+        )
+
         print("Balance distribution - Done\n")
 
     def send_transaction_list(self, transaction_list, with_response=False):
@@ -189,9 +201,9 @@ class Sender(Base):
         time_increment = 900
         divider = random.randint(100, 250)
         for tr in transaction_list:
-            now_iso = self.seconds_to_iso(datetime.now(timezone.utc).timestamp())
-            now_seconds = self.iso_to_seconds(now_iso)
-            expiration_time = self.seconds_to_iso(
+            now_iso = seconds_to_iso(datetime.now(timezone.utc).timestamp())
+            now_seconds = iso_to_seconds(now_iso)
+            expiration_time = seconds_to_iso(
                 now_seconds + time_increment + self.call_id
             )
             sign_transaction_list.append(
@@ -212,8 +224,8 @@ class Sender(Base):
                     self.prev_head
                     != self.dynamic_global_chain_data["head_block_number"]
                 ):
-                    self.call_id = 0
                     self.prev_head = self.dynamic_global_chain_data["head_block_number"]
+                    self.call_id = 0
                 self.lock.release()
 
         for tr in sign_transaction_list:
@@ -282,9 +294,9 @@ class Sender(Base):
         with_response=False,
     ):
         if x86_64_contract is True:
-            code = self.x86_64_contract
+            code = self.get_byte_code("fib", "code", ethereum_contract=False)
         else:
-            code = self.ethereum_contract
+            code = self.get_byte_code("fib", "code", ethereum_contract=True)
 
         transaction_list = []
         transfer_delta = 1
@@ -349,12 +361,14 @@ class Sender(Base):
 
     def create_transfer_transaction(self):
         transfer_amount = 1
+        to_account_id = "1.2.6"
+
         transaction_list = []
         transfer_operation = self.echo_ops.get_transfer_operation(
             echo=self.echo,
             from_account_id=self.echo_nathan_id,
             amount=transfer_amount,
-            to_account_id=self.echo_acc_2,
+            to_account_id=to_account_id,
             signer=self.nathan_priv_key,
         )
         collected_operation = self.collect_operations(
@@ -365,9 +379,9 @@ class Sender(Base):
         sign_transaction_list = []
         time_increment = 300
         for tr in transaction_list:
-            now_iso = self.seconds_to_iso(datetime.now(timezone.utc).timestamp())
-            now_seconds = self.iso_to_seconds(now_iso)
-            expiration_time = self.seconds_to_iso(
+            now_iso = seconds_to_iso(datetime.now(timezone.utc).timestamp())
+            now_seconds = iso_to_seconds(now_iso)
+            expiration_time = seconds_to_iso(
                 now_seconds + time_increment + self.call_id
             )
             sign_transaction_list.append(
