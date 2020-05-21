@@ -126,6 +126,15 @@ def main():
         default=1,
     )
     parser.add_argument(
+        "-sn",
+        "--sender_number",
+        dest="sender_number",
+        action="store",
+        type=int,
+        help="The sequence number of the sender",
+        required=True,
+    )
+    parser.add_argument(
         "-s",
         "--start_new",
         action="store_true",
@@ -177,7 +186,7 @@ def main():
             try:
                 print("Trying connect to", addr, ":", start_port + i)
                 sys.stdout.flush()
-                s = Sender(addr, start_port + i, args.account_num, call_id=j, step=step)
+                s = Sender(addr, start_port + i, args.account_num, call_id=j, step=step, sequence_num=args.sender_number)
                 info = "Address : {}  Port : {}".format(addr, start_port + i)
                 slist.append(s)
                 info_lst.append(info)
@@ -188,16 +197,15 @@ def main():
                 j = j + 1
             except ConnectionRefusedError as e:
                 logging.error(traceback.format_exc())
-                sys.stdout.flush()
                 print(e)
                 sys.stdout.flush()
         prev_num_nodes = prev_num_nodes + count
 
     if slist:
         if args.tx_type == 4:
-            slist[0].create_contract(x86_64_contract=False, with_response=True)
+            slist[0].create_contract(x86_64_contract=False, fee_amount=400, with_response=True)
         elif args.tx_type == 5:
-            slist[0].create_contract(x86_64_contract=True, with_response=True)
+            slist[0].create_contract(x86_64_contract=True, fee_amount=201, with_response=True)
 
         if args.parallel == False:
             while True:
