@@ -4,7 +4,6 @@
 Sender transactions for Echo node
 """
 
-import collections
 import configparser
 import argparse
 import time
@@ -159,8 +158,11 @@ def parse_arguments():
     parser.add_argument(
         "-mp",
         "--multiprocess",
-        action="store_true",
-        help="If specified, then sender will work multiprocessing",
+        dest="multiprocess",
+        action="store",
+        type=int,
+        help="Specify the number of running sender transactions",
+        default=0,
     )
     parser.add_argument(
         "-pn",
@@ -182,9 +184,7 @@ def config_parse(section):
     if not parser.sections():
         raise Exception("Config parse read exception, path to config incorrect")
 
-    hosts_info = parser._sections[section]
-
-    return {k: int(v) for k, v in hosts_info.items()}
+    return {k: int(v) for k, v in parser.items(section)}
 
 
 def validate_count_nodes(hosts_info):
@@ -201,7 +201,7 @@ def validate_count_nodes(hosts_info):
         )
 
 
-def connect_to_peers(hosts_info, number_of_accounts):
+def connect_to_peers(hosts_info):
     """ Setting up a connection to nodes """
 
     senders = []
@@ -215,10 +215,7 @@ def connect_to_peers(hosts_info, number_of_accounts):
                 print("Trying connect to", addr, ":", start_port + index, flush=True)
 
                 sender = Sender(
-                    addr,
-                    start_port + index,
-                    call_id=sender_id,
-                    step=count_nodes,
+                    addr, start_port + index, call_id=sender_id, step=count_nodes,
                 )
                 senders.append(sender)
 
@@ -310,7 +307,7 @@ def main():
 
     validate_count_nodes(hosts_info)
 
-    senders, info_nodes = connect_to_peers(hosts_info, args.account_num)
+    senders, info_nodes = connect_to_peers(hosts_info)
 
     if not senders:
         print("\nList senders is empty", flush=True)
@@ -322,10 +319,10 @@ def main():
     if args.tx_type == 4 or args.tx_type == 5:
         send_tx(senders[0], args.tx_type, 1)
 
-    if args.multiprocess is False:
+    if args.multiprocess == 0:
         run_sender(args, senders, info_nodes)
     else:
-        run_sender_with_subprocess(args, senders, info_nodes, 5)
+        run_sender_with_subprocess(args, senders, info_nodes, args.multiprocess)
 
 
 if __name__ == "__main__":
