@@ -35,7 +35,7 @@ class Sender(Base):
         self.call_id = call_id
         self.nathan = self.get_account("nathan", self.database_api_identifier)
         self.echo_nathan_id = self.nathan["id"]
-        self.account_num = account_num
+        self.account_num = self.get_account_count()
         self.nathan_priv_key = NATHAN_PRIV
         self.account_private_keys = []
         self.echo_acc_2 = "1.2.6"
@@ -236,27 +236,24 @@ class Sender(Base):
 
         return k
 
-    def get_nextto_account(self, from_account, to_account):
+    def get_next_to_account(self, from_account, to_account):
         to_account = to_account * (
             ((to_account - (self.account_num)) & 0xFFFFFFFF) >> 31
         )
         return to_account + (not (from_account ^ to_account))
 
-
     def transfer(self, transaction_count=1, amount=1, fee_amount=None):
         from_acc = "1.2.{}"
         to_acc = "1.2.{}"
-        n = 0
-        self.from_id = self.index
-        self.to_id = self.get_nextto_account(self.from_id, self.to_id)
 
+        self.from_id = self.index
+        self.to_id = self.get_next_to_account(self.from_id, self.to_id)
         transaction_list = []
         transfer_amount = 0
-        while n != transaction_count:
+        for _ in range(transaction_count):
             from_ = from_acc.format(self.from_id + 6)
             to_ = to_acc.format(self.to_id + 6)
             transfer_amount = transfer_amount + self.index + self.step
-
             transfer_operation = self.echo_ops.get_transfer_operation(
                 echo=self.echo,
                 from_account_id=from_,
@@ -269,11 +266,11 @@ class Sender(Base):
                 transfer_operation, self.database_api_identifier, fee_amount=fee_amount
             )
             transaction_list.append(collected_operation)
-            n += 1
+
             if transfer_amount > 2047:
                 transfer_amount = 0
-                self.to_id = self.get_nextto_account(self.from_id, self.to_id + 1)
-        self.to_id = self.get_nextto_account(self.from_id, self.to_id + 1)
+                self.to_id = self.get_next_to_account(self.from_id, self.to_id + 1)
+        self.to_id = self.get_next_to_account(self.from_id, self.to_id + 1)
         return self.send_transaction_list(transaction_list)
 
     def create_contract(

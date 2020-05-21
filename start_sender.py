@@ -18,6 +18,7 @@ from multiprocessing import Process
 
 import psutil
 from scripts.node_sender.sender import Sender
+from scripts.node_sender.base import Base
 
 
 def kill_sender():
@@ -120,15 +121,6 @@ def parse_arguments():
         default=0,
     )
     parser.add_argument(
-        "-n",
-        "--account_num",
-        dest="account_num",
-        action="store",
-        type=int,
-        help="Number of accounts",
-        required=True,
-    )
-    parser.add_argument(
         "-tt",
         "--tx_type",
         dest="tx_type",
@@ -195,6 +187,20 @@ def config_parse(section):
     return {k: int(v) for k, v in hosts_info.items()}
 
 
+def validate_count_nodes(hosts_info):
+    """ Validation arguments hosts info with number of accounts """
+
+    address, _ = hosts_info[0]
+    base = Base(address, 8090)
+    number_of_accounts = base.get_account_count()
+
+    count_nodes = sum(int(hosts_info[host]) for host in hosts_info)
+    if count_nodes > number_of_accounts:
+        raise Exception(
+            "Number of nodes should be less or equal to initial accounts number!"
+        )
+
+
 def connect_to_peers(hosts_info, number_of_accounts):
     """ Setting up a connection to nodes """
 
@@ -211,7 +217,6 @@ def connect_to_peers(hosts_info, number_of_accounts):
                 sender = Sender(
                     addr,
                     start_port + index,
-                    number_of_accounts,
                     call_id=sender_id,
                     step=count_nodes,
                 )
@@ -303,11 +308,7 @@ def main():
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    count_nodes = sum(int(hosts_info[host]) for host in hosts_info)
-    if count_nodes > args.account_num:
-        raise Exception(
-            "Number of nodes should be less or equal to initial accounts number!"
-        )
+    validate_count_nodes(hosts_info)
 
     senders, info_nodes = connect_to_peers(hosts_info, args.account_num)
 

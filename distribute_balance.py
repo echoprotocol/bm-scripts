@@ -7,15 +7,6 @@ from scripts.node_sender.sender import Sender
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     parser.add_argument(
-        "-n",
-        "--account_num",
-        action="store",
-        dest="account_num",
-        type=int,
-        help="Number of accounts",
-        default=20,
-    )
-    parser.add_argument(
         "-a",
         "--address",
         dest="address",
@@ -35,7 +26,7 @@ def main():
     )
     args = parser.parse_args()
 
-    s = Sender(args.address, args.port, args.account_num)
+    s = Sender(args.address, args.port)
     s.balance_distribution()
     s.interrupt_sender()
 

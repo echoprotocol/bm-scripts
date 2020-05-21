@@ -230,5 +230,12 @@ class Base:
             result = self.get_response(response_id)["result"][0]
         return result
 
+    def get_account_count(self):
+        response_id = self.send_request(
+            self.get_request("get_account_count", []), self.database_api_identifier
+        )
+        result = self.get_response(response_id)["result"]
+        return result
+
     def get_public_key(self, account):
         return account["active"]["key_auths"][0][0]
