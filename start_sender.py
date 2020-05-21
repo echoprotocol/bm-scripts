@@ -233,7 +233,7 @@ def connect_to_peers(hosts_info, number_of_accounts):
 def send(args, sender, info):
     """ Send transactions with arguments """
 
-    while sender.is_interrupted is False:
+    if sender.is_interrupted is False:
         print("Trying sent transactions to:", info, flush=True)
         if args.tps is True:
             start = time.time()
@@ -324,7 +324,7 @@ def main():
     if args.multiprocess is False:
         run_sender(args, senders, info_nodes)
     else:
-        run_sender_with_subprocess(args, senders, info_nodes, 3)
+        run_sender_with_subprocess(args, senders, info_nodes, 5)
 
 
 if __name__ == "__main__":

@@ -60,7 +60,7 @@ class Base:
         self.chain_id = tx._get_chain_id()
         self.dynamic_global_chain_data = tx._get_dynamic_global_chain_data(
             dynamic_global_object_id="2.1.0"
-        )
+        )[0]
 
     def create_connection_to_echo(self):
         return create_connection(url=self.node_url)

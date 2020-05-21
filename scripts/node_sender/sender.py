@@ -6,6 +6,7 @@ from random import randrange
 
 from .base import Base
 from ..node_deployer.deployer import NATHAN_PRIV
+from ..utils.utils import generate_keys
 
 initial_balance = 1000000000000000
 import random
@@ -182,7 +183,7 @@ class Sender(Base):
         self.echo_ops.broadcast(tx, with_response=True)
         print("Balance distribution - Done\n")
 
-    def send_transaction_list(self, transaction_list, with_response=None):
+    def send_transaction_list(self, transaction_list, with_response=False):
         sign_transaction_list = []
 
         time_increment = 900
@@ -235,30 +236,44 @@ class Sender(Base):
 
         return k
 
-    def transfer(self, transaction_count = 1, amount = 1, fee_amount=None):
-        transfer_amount = amount
-        if amount == 1:
-            transfer_amount = random.randint(self.index+1, self.index+50)
+    def get_nextto_account(self, from_account, to_account):
+        to_account = to_account * (
+            ((to_account - (self.account_num)) & 0xFFFFFFFF) >> 31
+        )
+        return to_account + (not (from_account ^ to_account))
+
+
+    def transfer(self, transaction_count=1, amount=1, fee_amount=None):
+        from_acc = "1.2.{}"
+        to_acc = "1.2.{}"
+        n = 0
+        self.from_id = self.index
+        self.to_id = self.get_nextto_account(self.from_id, self.to_id)
+
         transaction_list = []
-
-        base_account = 6
-
-        for _ in range(transaction_count):
-            nathan_id = int(self.echo_nathan_id.split('.')[-1])
-            range_accounts = list(range(base_account, nathan_id))
-            r = random.choice(range_accounts)
-
-            _from = "1.2.{}".format(nathan_id)
-            _to = "1.2.{}".format(r)
+        transfer_amount = 0
+        while n != transaction_count:
+            from_ = from_acc.format(self.from_id + 6)
+            to_ = to_acc.format(self.to_id + 6)
+            transfer_amount = transfer_amount + self.index + self.step
 
             transfer_operation = self.echo_ops.get_transfer_operation(
-                echo = self.echo, from_account_id = _from,
-                amount = transfer_amount, to_account_id = _to,
-                signer=self.nathan_priv_key)
+                echo=self.echo,
+                from_account_id=from_,
+                amount=transfer_amount,
+                to_account_id=to_,
+                signer=self.private_keys[self.from_id],
+            )
 
-            collected_operation = self.collect_operations(transfer_operation, self.database_api_identifier, fee_amount=fee_amount)
+            collected_operation = self.collect_operations(
+                transfer_operation, self.database_api_identifier, fee_amount=fee_amount
+            )
             transaction_list.append(collected_operation)
-
+            n += 1
+            if transfer_amount > 2047:
+                transfer_amount = 0
+                self.to_id = self.get_nextto_account(self.from_id, self.to_id + 1)
+        self.to_id = self.get_nextto_account(self.from_id, self.to_id + 1)
         return self.send_transaction_list(transaction_list)
 
     def create_contract(
@@ -285,7 +300,7 @@ class Sender(Base):
                 bytecode=code,
                 value_amount=self.transfer_amount + transfer_delta,
                 value_asset_id=self.echo_asset,
-                signer=self.account_private_keys[self.from_id],
+                signer=self.private_keys[self.from_id],
             )
             collected_operation = self.collect_operations(
                 operation, self.database_api_identifier, fee_amount=fee_amount+self.fee_delta
@@ -324,7 +339,7 @@ class Sender(Base):
                 value_amount=self.transfer_amount + transfer_delta,
                 bytecode=code,
                 callee=contract_id,
-                signer=self.account_private_keys[self.from_id],
+                signer=self.private_keys[self.from_id],
             )
             collected_operation = self.collect_operations(
                 operation, self.database_api_identifier, fee_amount=fee_amount+self.fee_delta
