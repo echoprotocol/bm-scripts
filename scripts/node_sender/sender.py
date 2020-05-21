@@ -5,7 +5,7 @@ from calendar import timegm
 from random import randrange
 
 from .base import Base
-from ..node_deployer.deployer import NATHAN_PRIV
+from ..utils.utils import NATHAN_PRIV
 from ..utils.utils import generate_keys
 
 initial_balance = 1000000000000000

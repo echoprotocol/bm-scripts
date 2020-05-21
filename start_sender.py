@@ -250,13 +250,13 @@ def send(args, sender, info):
             time.sleep(args.delay)
 
 
-def run_sender(args, senders, info_nodes):
+def run_sender(args, senders, info_nodes, start_index=0):
     """ Run sender to send transactions """
 
     print("Run sender")
 
     while senders:
-        for index, _ in enumerate(senders):
+        for index, _ in enumerate(senders[start_index:]):
             try:
                 send(args, senders[index], info_nodes[index])
             except Exception as err:
@@ -275,9 +275,16 @@ def run_sender_with_subprocess(args, senders, info_nodes, number_of_subprocesses
 
     print("Start in multiprocessing")
 
+    if number_of_subprocesses > len(senders):
+        raise Exception(
+            "The number of processes must be less than or equal to the number of senders"
+        )
+
     processes = []
-    for _ in range(number_of_subprocesses):
-        sender_process = Process(target=run_sender, args=(args, senders, info_nodes))
+    for index in range(number_of_subprocesses):
+        sender_process = Process(
+            target=run_sender, args=(args, senders, info_nodes, index)
+        )
         processes.append(sender_process)
         sender_process.start()
 
