@@ -30,6 +30,12 @@ def kill_sender():
             os.kill(proc.pid, signal.SIGTERM)
 
 
+def setup_sender_logger(start_index):
+    """ To setup for sender logger. Start index in this case file log ID """
+
+    logging.basicConfig(filename="send{}.log".format(start_index), level=logging.INFO)
+
+
 def transfer_operation(sender, txs_count):
     """ Send transaction with txs_count transfer operations """
 
@@ -235,34 +241,48 @@ def connect_to_peers(hosts_info):
 def send(args, sender, info):
     """ Send transactions with arguments """
 
+    sent = 0
+
     if not sender.is_interrupted:
-        print("Trying sent transactions to:", info, flush=True)
+        logging.info("Trying sent transactions to:%s", info)
         if args.tps:
             start = time.time()
             sent = send_tx(sender, args.tx_type, args.txs_count)
-            print(sent, "Transactions sent", flush=True)
+            logging.info("%d transactions sent", sent)
             diff = time.time() - start
             if diff < 1.0:
                 time.sleep(round((1.0 - diff), 3))
         else:
             sent = send_tx(sender, args.tx_type, args.txs_count)
-            print(sent, "Transactions sent", flush=True)
+            logging.info("%d transactions sent", sent)
             time.sleep(args.delay)
+    return sent
 
 
-def run_sender(args, senders, info_nodes, start_index=0):
+def run_sender(args, senders, info_nodes, sender_ID=0):
     """ Run sender to send transactions """
 
-    print("Run sender")
+    print("Run sender{}".format(sender_ID))
 
+    setup_sender_logger(sender_ID)
+    total_transactions_sent = 0
+
+    offset = sender_ID  # Starting the sender with an offset
     while senders:
-        for index, _ in enumerate(senders, start_index):
+        for index, _ in enumerate(senders, offset):
             try:
                 if index >= len(senders):
-                    start_index = 0
+                    offset = 0
                     break
 
-                send(args, senders[index], info_nodes[index])
+                total_transactions_sent += send(args, senders[index], info_nodes[index])
+
+                if total_transactions_sent % 10000 == 0:
+                    print(
+                        "Sender{} status. Total transactions sent {}".format(
+                            sender_ID, total_transactions_sent
+                        )
+                    )
             except Exception as err:
                 print(
                     "Caught exception during transaction sending: {0}".format(err),
