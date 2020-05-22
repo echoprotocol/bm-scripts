@@ -27,11 +27,9 @@ subscribe_callback_req = (
 subscribe_dgpo_req = '{"method": "get_objects", "params": [["2.1.0"]], "id": 0}'
 tx_count_req = '{{"method": "get_block_tx_number", "params": [{block_id}], "id": 0}}'
 
-network_req = '{"method": "call", "params": [1, "network_broadcast", []], "id": 0}'
-broadcast_transaction = '{{"method": "call", "params": [2, "broadcast_transaction", [{tx}]], "jsonrpc": "2.0", "id": 0}}'
 
 class Sender(Base):
-    def __init__(self, node_url, port, account_num, call_id=0, step=1, sequence_num = 0):
+    def __init__(self, node_url, port, call_id=0, step=1, sequence_num=0):
         super().__init__(node_url, port)
 
         self.call_id = call_id
@@ -54,6 +52,7 @@ class Sender(Base):
         self.prev_head = self.dynamic_global_chain_data["head_block_number"]
 
         self.is_interrupted = False
+        self.lock = threading.Lock()
         self.sws = None
         self.t = threading.Thread(target=self.processing_gpo)
         self.t.start()
@@ -61,20 +60,11 @@ class Sender(Base):
         self.step = step
         self.index = call_id
         self.sequence_num = sequence_num
-        self.from_id = self.index + self.step*self.sequence_num
-        self.from_id = self.check_from_id()
+        self.set_from_id()
         self.to_id = 0
         self.transfer_amount = 0
         self.fee_delta = 0
 
-        self.nws = create_connection(self.url)
-        self.login_network_api()
-
-    def login_network_api(self):
-        self.nws.send(login_req)
-        self.nws.recv()
-        self.nws.send(network_req)
-        self.nws.recv()
     def __del__(self):
         self.interrupt_sender()
 
@@ -89,15 +79,14 @@ class Sender(Base):
             self.sws.recv()
             self.sws.send(subscribe_dgpo_req)
             self.sws.recv()
-            self.is_subscribed_to_dgpo = True
-            while self.is_interrupted == False:
+            while not self.is_interrupted:
                 msg = self.sws.recv()
                 self.lock.acquire()
                 response = json.loads(msg)
                 self.dynamic_global_chain_data = response["params"][1][0][0]
                 self.lock.release()
         except (json.decoder.JSONDecodeError, OSError) as e:
-            if self.is_interrupted == False:
+            if not self.is_interrupted:
                 print("Caught exception in tps colletor thread:")
                 print("-------------------------------------------")
                 logging.error(traceback.format_exc())
@@ -134,11 +123,10 @@ class Sender(Base):
         self.private_keys = self.private_keys_parse()
         self.nathan_priv_key = self.private_keys[-1]
 
-    def check_from_id(self):
-        if self.from_id < self.account_num:
-            return self.from_id
-        else: 
-            return int(self.from_id % self.account_num)
+    def set_from_id(self):
+        self.from_id = self.index + self.step * self.sequence_num
+        if self.from_id >= self.account_num:
+            self.from_id = int(self.from_id % self.account_num)
 
     def import_balance_to_nathan(self):
         print("Started import balance")
@@ -228,22 +216,20 @@ class Sender(Base):
                     self.call_id = 0
                 self.lock.release()
 
-        for tr in sign_transaction_list:
-            self.nws.send(broadcast_transaction.format(tx=json.dumps(tr.transaction_object.json())))
-
         k = 0
-        for i in range(len(sign_transaction_list)):
-            recv = json.loads(self.nws.recv())
-            k = k + 1
-            if "error" in recv:
-                if "skip_transaction_dupe_check" in str(recv["error"]):
-                    print("Caught txs dupe")
-                elif "is_known_transaction" in  str(recv["error"]):
-                    print("The same transaction exists in chain")
-                elif "pending_txs" in  str(recv["error"]):
-                    print("The same transaction exists in pending txs")
+        for tx in sign_transaction_list:
+            try:
+                self.echo_ops.broadcast(tx, with_response=with_response)
+                k = k + 1
+            except self.echo.echoapi.ws.exceptions.RPCError as rpc_error:
+                if "skip_transaction_dupe_check" in str(rpc_error):
+                    logging.info("Caught txs dupe")
+                elif "is_known_transaction" in str(rpc_error):
+                    logging.info("The same transaction exists in chain")
+                elif "pending_txs" in str(rpc_error):
+                    logging.info("The same transaction exists in pending txs")
                 else:
-                    print(str(recv["error"]))
+                    logging.error(str(rpc_error))
                 k = k - 1
 
         return k
@@ -254,35 +240,46 @@ class Sender(Base):
         )
         return to_account + (not (from_account ^ to_account))
 
+    def get_next_value(self, value, increase_it):
+        value = value + (self.index + self.step * (self.sequence_num + 1)) * increase_it
+        increase_next = ((value - 16383) & 0xFFFFFFFF) >> 31
+        value = value * increase_next
+        return value, not (increase_next)
+
     def transfer(self, transaction_count=1, amount=1, fee_amount=None):
         from_acc = "1.2.{}"
         to_acc = "1.2.{}"
+        transfer_delta = 1
 
-        self.from_id = self.index
         self.to_id = self.get_next_to_account(self.from_id, self.to_id)
         transaction_list = []
-        transfer_amount = 0
         for _ in range(transaction_count):
             from_ = from_acc.format(self.from_id + 6)
             to_ = to_acc.format(self.to_id + 6)
-            transfer_amount = transfer_amount + self.index + self.step
+            self.fee_delta, increase_transfer_value = self.get_next_value(
+                self.fee_delta, True
+            )
+
             transfer_operation = self.echo_ops.get_transfer_operation(
                 echo=self.echo,
                 from_account_id=from_,
-                amount=transfer_amount,
+                amount=self.transfer_amount + transfer_delta,
                 to_account_id=to_,
                 signer=self.private_keys[self.from_id],
             )
-
             collected_operation = self.collect_operations(
-                transfer_operation, self.database_api_identifier, fee_amount=fee_amount
+                transfer_operation,
+                self.database_api_identifier,
+                fee_amount=fee_amount + self.fee_delta,
             )
             transaction_list.append(collected_operation)
+            self.transfer_amount, increase_next_account = self.get_next_value(
+                self.transfer_amount, increase_transfer_value
+            )
+            self.to_id = self.to_id = self.get_next_to_account(
+                self.from_id, self.to_id + 1 * increase_next_account
+            )
 
-            if transfer_amount > 2047:
-                transfer_amount = 0
-                self.to_id = self.get_next_to_account(self.from_id, self.to_id + 1)
-        self.to_id = self.get_next_to_account(self.from_id, self.to_id + 1)
         return self.send_transaction_list(transaction_list)
 
     def create_contract(
@@ -300,9 +297,11 @@ class Sender(Base):
 
         transaction_list = []
         transfer_delta = 1
-        n = 0
-        while n != transaction_count:
-            self.fee_delta, increase_transfer_value = self.get_next_value(self.fee_delta, True)
+
+        for _ in range(transaction_count):
+            self.fee_delta, increase_transfer_value = self.get_next_value(
+                self.fee_delta, True
+            )
             operation = self.echo_ops.get_contract_create_operation(
                 echo=self.echo,
                 registrar="1.2.{}".format(self.from_id + 6),
@@ -312,11 +311,14 @@ class Sender(Base):
                 signer=self.private_keys[self.from_id],
             )
             collected_operation = self.collect_operations(
-                operation, self.database_api_identifier, fee_amount=fee_amount+self.fee_delta
+                operation,
+                self.database_api_identifier,
+                fee_amount=fee_amount + self.fee_delta,
             )
-            self.transfer_amount,_ = self.get_next_value(self.transfer_amount, increase_transfer_value)
+            self.transfer_amount, _ = self.get_next_value(
+                self.transfer_amount, increase_transfer_value
+            )
             transaction_list.append(collected_operation)
-            n += 1
 
         return self.send_transaction_list(transaction_list, with_response=with_response)
 
@@ -337,11 +339,12 @@ class Sender(Base):
             code = self.get_byte_code("fib", "fib(1)", ethereum_contract=True)
 
         transaction_list = []
-
         transfer_delta = 1
-        n = 0
-        while n != (transaction_count):
-            self.fee_delta, increase_transfer_value = self.get_next_value(self.fee_delta, True)
+
+        for _ in range(transaction_count):
+            self.fee_delta, increase_transfer_value = self.get_next_value(
+                self.fee_delta, True
+            )
             operation = self.echo_ops.get_contract_call_operation(
                 echo=self.echo,
                 registrar="1.2.{}".format(self.from_id + 6),
@@ -351,11 +354,14 @@ class Sender(Base):
                 signer=self.private_keys[self.from_id],
             )
             collected_operation = self.collect_operations(
-                operation, self.database_api_identifier, fee_amount=fee_amount+self.fee_delta
+                operation,
+                self.database_api_identifier,
+                fee_amount=fee_amount + self.fee_delta,
             )
-            self.transfer_amount,_ = self.get_next_value(self.transfer_amount, increase_transfer_value)
+            self.transfer_amount, _ = self.get_next_value(
+                self.transfer_amount, increase_transfer_value
+            )
             transaction_list.append(collected_operation)
-            n += 1
 
         return self.send_transaction_list(transaction_list)
 

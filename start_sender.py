@@ -33,7 +33,9 @@ def kill_sender():
 def setup_sender_logger(start_index):
     """ To setup for sender logger. Start index in this case file log ID """
 
-    logging.basicConfig(filename="send{}.log".format(start_index), level=logging.INFO)
+    logging.basicConfig(
+        filename="send{}.log".format(start_index), filemode="w", level=logging.INFO
+    )
 
 
 def transfer_operation(sender, txs_count):
@@ -207,7 +209,7 @@ def validate_count_nodes(hosts_info):
         print(err, flush=True)
 
 
-def connect_to_peers(hosts_info):
+def connect_to_peers(hosts_info, sender_number):
     """ Setting up a connection to nodes """
 
     senders = []
@@ -221,7 +223,11 @@ def connect_to_peers(hosts_info):
                 print("Trying connect to", addr, ":", start_port + index, flush=True)
 
                 sender = Sender(
-                    addr, start_port + index, call_id=sender_id, step=count_nodes,
+                    addr,
+                    start_port + index,
+                    call_id=sender_id,
+                    step=count_nodes,
+                    sequence_num=sender_number,
                 )
                 senders.append(sender)
 
@@ -294,7 +300,7 @@ def run_sender(args, senders, info_nodes, sender_ID=0):
                 del info_nodes[index]
 
 
-def run_sender_with_subprocess(args, senders, info_nodes, number_of_subprocesses):
+def run_sender_in_multiprocessing(args, senders, info_nodes, number_of_subprocesses):
     """ Run some senders to send transactions with multiprocessing """
 
     print("Start in multiprocessing")
@@ -304,8 +310,16 @@ def run_sender_with_subprocess(args, senders, info_nodes, number_of_subprocesses
             "The number of processes must be less than or equal to the number of senders"
         )
 
+    sender_numbers = range(
+        args.sender_number, args.sender_number + number_of_subprocesses
+    )  # fix duplicate transactions for senders in multiprocessing mode
+
     processes = []
     for index in range(number_of_subprocesses):
+        for sender in senders:
+            sender.sequence_num = sender_numbers[index]
+            sender.set_from_id()
+
         sender_process = Process(
             target=run_sender, args=(args, senders, info_nodes, index)
         )
@@ -338,7 +352,7 @@ def main():
 
     validate_count_nodes(hosts_info)
 
-    senders, info_nodes = connect_to_peers(hosts_info)
+    senders, info_nodes = connect_to_peers(hosts_info, args.sender_number)
 
     if not senders:
         print("\nList senders is empty", flush=True)
@@ -354,7 +368,7 @@ def main():
     if args.multiprocess == 0:
         run_sender(args, senders, info_nodes)
     else:
-        run_sender_with_subprocess(args, senders, info_nodes, args.multiprocess)
+        run_sender_in_multiprocessing(args, senders, info_nodes, args.multiprocess)
 
 
 if __name__ == "__main__":
