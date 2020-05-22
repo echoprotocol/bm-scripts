@@ -3,10 +3,8 @@
 import argparse
 from scripts.node_deployer.tps_checker import tps_checker
 import signal
-import time
-
-from datetime import datetime
-from sys import maxsize
+import logging
+import traceback
 
 
 def main():
@@ -50,17 +48,9 @@ def main():
     )
     args = parser.parse_args()
 
-    t = tps_checker(args.address, args.port, maxsize)
+    t = tps_checker(args.address, args.port, args.txs_count)
     t.run_check()
-
-    while True:
-        t.collected_tx_number=0
-        time.sleep(60)
-        tps=t.collected_tx_number/60
-        print(datetime.now().strftime("%H:%M:%S"), "current tps:",
-              tps, "block num:", t.block_number, flush=True)
-
-    t.interrupt_checker()
+    t.wait_check()
     print("Stopped")
 
 
