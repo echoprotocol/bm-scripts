@@ -235,9 +235,9 @@ def connect_to_peers(hosts_info):
 def send(args, sender, info):
     """ Send transactions with arguments """
 
-    if sender.is_interrupted is False:
+    if not sender.is_interrupted:
         print("Trying sent transactions to:", info, flush=True)
-        if args.tps is True:
+        if args.tps:
             start = time.time()
             sent = send_tx(sender, args.tx_type, args.txs_count)
             print(sent, "Transactions sent", flush=True)
@@ -256,8 +256,12 @@ def run_sender(args, senders, info_nodes, start_index=0):
     print("Run sender")
 
     while senders:
-        for index, _ in enumerate(senders[start_index:]):
+        for index, _ in enumerate(senders, start_index):
             try:
+                if index >= len(senders):
+                    start_index = 0
+                    break
+
                 send(args, senders[index], info_nodes[index])
             except Exception as err:
                 print(
@@ -301,7 +305,7 @@ def main():
     else:
         hosts_info = json.loads(args.hosts_info)
 
-    if args.start_new is False:
+    if not args.start_new:
         kill_sender()
 
     def signal_handler(sig, frame):
@@ -320,8 +324,12 @@ def main():
         print("\nList senders is empty", flush=True)
         sys.exit(1)
 
+    if args.private_network:
+        for sender in senders:
+            sender.private_network()
+
     if args.tx_type == 4 or args.tx_type == 5:
-        send_tx(senders[0], args.tx_type, 1)
+        send_tx(senders[0], args.tx_type - 2, 1)
 
     if args.multiprocess == 0:
         run_sender(args, senders, info_nodes)
