@@ -16,7 +16,7 @@ Starting alerts script for controlling four nodes, server name - "echo1", interv
 
 ### Help for start_tpschecker.py
 
-This script needed one time tps cheking by specifying amount of expected transactions. After this script will be closed. Script options:
+This script needed for one time tps cheking by specifying amount of expected transactions. After this script will be closed. Script options:
 * `-txs` - number of expected transactions, when tps_checker collect them - it will be closed with results.
 * `-a`   - address where checker will be connected
 * `-p`   - rpc port endpoint port

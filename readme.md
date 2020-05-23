@@ -15,7 +15,7 @@
 
 ### Core dumps
 
-Here can be situations, when something went wrong and you should have informations about this situations, core dumps will help you:
+Here can be situations, when something went wrong and you should have informations about this situations, core dumps will help you.
 For generating core dumps, you should write core pattern by next command on your host: `echo '/tmp/core.%t.%e.%p.%P' | sudo tee /proc/sys/kernel/core_pattern`.
 For permanent storing core_pattern (it will be changed for next computer start), you should write rule `kernel.core_pattern=/tmp/cores/core.%t.%e.%p.%P` to file `/etc/sysctl.conf`.
 

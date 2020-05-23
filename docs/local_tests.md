@@ -20,9 +20,7 @@ this done by iproute2 package. So, if no delay specified for tps suite, you can 
 
 ### Examples
 
-* `python3 main.py -s tps -n 2 -e ~/echo/build/bin/echo_node -p ~/pumba/.bin/pumba -t 100 -i ubuntu_delay -txs 10000 -ct all_to_all` - command will run tps suite with 2 nodes, with delay tim
-e 100ms, name of docker image - ubuntu_delay, transaction count - 10000, connection type between nodes - all to all. If no delayed nodes specified - then delay will be started on every node. if
+* `python3 main.py -s tps -n 2 -e ~/echo/build/bin/echo_node -p ~/pumba/.bin/pumba -t 100 -i ubuntu_delay -txs 10000 -ct all_to_all` - command will run tps suite with 2 nodes, with delay time 100ms, name of docker image - ubuntu_delay, transaction count - 10000, connection type between nodes - all to all. If no delayed nodes specified - then delay will be started on every node. if
 `-t` option not specified or specified with 0, then there is no delay, and special image with tc package not required.
 
-* `./main.py -s propagation -n 5 -e ~/echo/build/bin/echo_node -p ~/pumba/.bin/pumba -t 50 -i ubuntu_delay -dn 0 1 2` - command will run propagation suite with 5 nodes, delay time - 50ms, no
-des with delay parameter - echonode0, echonode1, echonode2. Name of containers - echonode{n}, where n - number of node started from 0
+* `./main.py -s propagation -n 5 -e ~/echo/build/bin/echo_node -p ~/pumba/.bin/pumba -t 50 -i ubuntu_delay -dn 0 1 2` - command will run propagation suite with 5 nodes, delay time - 50ms, nodes with delay parameter - echonode0, echonode1, echonode2. Name of containers - echonode{n}, where n - number of node started from 0

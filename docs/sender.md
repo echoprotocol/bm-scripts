@@ -1,11 +1,11 @@
 ### Help for start_sender.py
 
-This script needed for sending transactions of differrent types with next options:
-* `-hi`  - hosts info flag, the same as in start_deployer, for more information see start_deployer.md
+This script needed for sending transactions of differrent types. Script options:
+* `-hi`  - hosts info flag, the same as in start_deployer, for more information see deployer.md
 * `-txs` - number of transaction will be send
 * `-d`   - delay between transactions in seconds
 * `-tt`  - transaction type, see `--help` for information about arguments
-* `-sn`  - sender_number (or sequence_number) - the same as in start_deployer, see start_deployer.md
+* `-sn`  - sender_number (or sequence_number) - the same as in start_deployer, see deployer.md
 * `-s/--start_new` - if this flag not specified - then previous start_sender process will be killed
 * `-t/--tps`   - if this argmunets specified, then sender will hold tps equal to amount of txs argmunets, if not specified - then highier, or less, if signing of then bunch of transactions take more then 1 second
 * `-mp`   - sender will run in parallel mode, with specified number of daughter processes.
@@ -23,5 +23,5 @@ This script needed for importing nathan balance and distribution between account
 
 ### Example
 
-`./import_balance.py -p 8090 -a 172.17.0.2` - here specified docker ip address, where node deployed
+`./import_balance.py -p 8090 -a 172.17.0.2` - here specified docker ip address, where node deployed  
 `./distribute_balance.py -p 8090 -a 172.17.0.2`
