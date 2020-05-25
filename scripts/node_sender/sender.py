@@ -221,7 +221,7 @@ class Sender(Base):
             try:
                 self.echo_ops.broadcast(tx, with_response=with_response)
                 k = k + 1
-            except self.echo.echoapi.ws.exceptions.RPCError as rpc_error:
+            except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
                 if "skip_transaction_dupe_check" in str(rpc_error):
                     logging.info("Caught txs dupe")
                 elif "is_known_transaction" in str(rpc_error):

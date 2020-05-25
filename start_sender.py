@@ -305,11 +305,6 @@ def run_sender_in_multiprocessing(args, senders, info_nodes, number_of_subproces
 
     print("Start in multiprocessing")
 
-    if number_of_subprocesses > len(senders):
-        raise Exception(
-            "The number of processes must be less than or equal to the number of senders"
-        )
-
     sender_numbers = range(
         args.sender_number, args.sender_number + number_of_subprocesses
     )  # fix duplicate transactions for senders in multiprocessing mode
