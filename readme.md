@@ -8,10 +8,10 @@
 `newgrp docker`  
 
 4. Build ubuntu_delay image with: `docker build -t ubuntu_delay ./scripts/resources`
-5. See "Core dumps" section
-6. See "Debugging" section
-7. See "Examples" section
-8. See docs folder for more start examples
+5. See [Core dumps](#core-dumps) section
+6. See [Debugging](#debugging) section
+7. See [Examples](#examples-starting-nodes-on-servers) section
+8. See [docs](./docs) folder for more start examples
 
 ### Core dumps
 
@@ -40,4 +40,4 @@ Starting 25 nodes per server:
 Starting sender:
 * `./start_sender.py -hi '{"192.168.9.40":25, "192.168.9.41":25, "192.168.9.42":25, "192.168.9.43":25}' -txs 200`
 
-More information about options you can get with `--help` command, it available on all scripts, or see docs folder.
+More information about options you can get with `--help` command, it available on all scripts, or see [docs](./docs) folder.
