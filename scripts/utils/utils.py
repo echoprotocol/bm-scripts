@@ -1,3 +1,8 @@
+from datetime import timezone, datetime
+from math import ceil
+from calendar import timegm
+from time import strptime
+
 class tx_ratio:
     transfer = 0.88
     create_contract = 0.04
@@ -21,3 +26,15 @@ def generate_keys(account_num):
     private_keys.append(NATHAN_PRIV)
     public_keys.append(NATHAN_PUB)
     return [private_keys, public_keys]
+
+
+def seconds_to_iso(sec):
+    iso_result = (
+        datetime.fromtimestamp(sec, timezone.utc).replace(microsecond=0).isoformat()
+    )
+    return iso_result[: iso_result.rfind("+")]
+
+
+def iso_to_seconds(iso):
+    timeformat = "%Y-%m-%dT%H:%M:%S%Z"
+    return ceil(timegm(strptime((iso + "UTC"), timeformat)))

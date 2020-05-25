@@ -13,6 +13,8 @@ from .type_validation import TypeValidator
 from .operations_ids import OperationIds
 
 from ..utils.files_path import ECHO_OPERATIONS
+from ..utils.utils import seconds_to_iso
+from ..utils.utils import iso_to_seconds
 
 
 class EchoOperation:
@@ -40,7 +42,7 @@ class EchoOperation:
     ):
         if extensions is None:
             extensions = []
-        operation_id = echo.config.operation_ids.BALANCE_CLAIM
+        operation_id = self.operation_ids.BALANCE_CLAIM
         balance_claim_operation_props = self.get_operation_json(
             "balance_claim_operation"
         )
@@ -168,7 +170,7 @@ class EchoOperation:
 
     def sign(self, tx, chain_id, dynamic_global_chain_data):
         tx._finalized = True
-
+        tx._chain_id = chain_id
         tx._ref_block_num = dynamic_global_chain_data["head_block_number"] & 0xFFFF
 
         def bytes_to_int(bytes):
@@ -184,19 +186,6 @@ class EchoOperation:
         tx._ref_block_prefix = bytes_to_int(little_endian)
 
         if tx.expiration is None:
-
-            def seconds_to_iso(sec):
-                iso_result = (
-                    datetime.fromtimestamp(sec, timezone.utc)
-                    .replace(microsecond=0)
-                    .isoformat()
-                )
-                return iso_result[: iso_result.rfind("+")]
-
-            def iso_to_seconds(iso):
-                timeformat = "%Y-%m-%dT%H:%M:%S%Z"
-                return ceil(timegm(time.strptime((iso + "UTC"), timeformat)))
-
             now_iso = seconds_to_iso(datetime.now(timezone.utc).timestamp())
             now_seconds = iso_to_seconds(now_iso)
             tx.expiration = seconds_to_iso(now_seconds + 300)

@@ -3,6 +3,8 @@
 import argparse
 from scripts.node_deployer.tps_checker import tps_checker
 import signal
+import logging
+import traceback
 
 
 def main():

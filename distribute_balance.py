@@ -7,15 +7,6 @@ from scripts.node_sender.sender import Sender
 def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     parser.add_argument(
-        "-n",
-        "--account_num",
-        action="store",
-        dest="account_num",
-        type=int,
-        help="Number of accounts",
-        default=20,
-    )
-    parser.add_argument(
         "-a",
         "--address",
         dest="address",
@@ -33,9 +24,19 @@ def main():
         help="Specify port for sender",
         default="",
     )
+    parser.add_argument(
+        "-pn",
+        "--private_network",
+        action="store_true",
+        help="Enable sender for private network",
+    )
     args = parser.parse_args()
 
-    s = Sender(args.address, args.port, args.account_num)
+    s = Sender(args.address, args.port)
+
+    if args.private_network is True:
+        s.private_network()
+
     s.balance_distribution()
     s.interrupt_sender()
 

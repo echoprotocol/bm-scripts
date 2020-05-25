@@ -102,7 +102,6 @@ class load_test:
                 Sender(
                     a,
                     p,
-                    self.d.committee_count,
                     number_of_node,
                     len(self.d.get_addresses()),
                 )
