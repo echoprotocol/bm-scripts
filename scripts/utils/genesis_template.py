@@ -263,11 +263,11 @@ genesis_temp = """
     ],
     "echorand_config": {
       "_time_generate": 1000,
-      "_time_net_1mb": 1500,
+      "_time_net_1mb": 1200,
       "_time_net_256b": 400,
-      "_creator_count": 5,
-      "_verifier_count": 12,
-      "_ok_threshold": 9,
+      "_creator_count": 3,
+      "_verifier_count": 10,
+      "_ok_threshold": 7,
       "_max_bba_steps": 12,
       "_round_attempts": 5
     },
