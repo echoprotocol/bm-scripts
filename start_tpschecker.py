@@ -71,19 +71,15 @@ def main():
     while not tps.is_interrupted:
         tps.collected_tx_number = 0
         time.sleep(args.time_interval)
-        tps = tps.collected_tx_number / args.time_interval
+        tps_result = tps.collected_tx_number / args.time_interval
         print(
             datetime.now().strftime("%H:%M:%S"),
             "current tps:",
-            tps,
+            tps_result,
             "block num:",
             tps.block_number,
             flush=True,
         )
-
-    tps.interrupt_checker()
-
-    print("Stopped")
 
 
 if __name__ == "__main__":
