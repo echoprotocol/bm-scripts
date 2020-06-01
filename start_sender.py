@@ -270,7 +270,6 @@ def run_sender(args, senders, info_nodes, sender_ID=0):
 
     print("Run sender{}".format(sender_ID))
 
-    setup_sender_logger(sender_ID)
     total_transactions_sent = 0
 
     offset = sender_ID  # Starting the sender with an offset
@@ -284,7 +283,7 @@ def run_sender(args, senders, info_nodes, sender_ID=0):
                 total_transactions_sent += send(args, senders[index], info_nodes[index])
 
                 if total_transactions_sent % 10000 == 0:
-                    print(
+                    logging.info(
                         "Sender{} status. Total transactions sent {}".format(
                             sender_ID, total_transactions_sent
                         )
@@ -311,6 +310,8 @@ def run_sender_in_multiprocessing(args, senders, info_nodes, number_of_subproces
 
     processes = []
     for index in range(number_of_subprocesses):
+        setup_sender_logger(sender_numbers[index])
+
         for sender in senders:
             sender.sequence_num = sender_numbers[index]
             sender.set_from_id()
@@ -361,6 +362,7 @@ def main():
         send_tx(senders[0], args.tx_type - 2, 1)
 
     if args.multiprocess == 0:
+        setup_sender_logger(args.sender_number)
         run_sender(args, senders, info_nodes)
     else:
         run_sender_in_multiprocessing(args, senders, info_nodes, args.multiprocess)
