@@ -1,33 +1,24 @@
 #!/usr/bin/python3
 
+"""
+TPS checker for Echo node
+"""
+
 import argparse
-from scripts.node_deployer.tps_checker import tps_checker
+import traceback
 import signal
 import logging
-import traceback
+import time
+
+from datetime import datetime
+from sys import maxsize
+from scripts.node_deployer.tps_checker import tps_checker
 
 
-def main():
-    t = None
-
-    def signal_handler(sig, frame):
-        print("\nCaught SIGINT:")
-        if t is not None:
-            t.interrupt_checker()
-        raise SystemExit("Exited from Ctrl-C handler")
-
-    signal.signal(signal.SIGINT, signal_handler)
+def parse_arguments():
+    """ Parse arguments for start tps checker """
 
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
-    parser.add_argument(
-        "-txs",
-        "--txs_count",
-        dest="txs_count",
-        action="store",
-        type=int,
-        help="Number of transactions",
-        default=1000,
-    )
     parser.add_argument(
         "-a",
         "--address",
@@ -46,18 +37,56 @@ def main():
         help="Rpc port for connecting",
         default=8090,
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-ti",
+        "--time_interval",
+        action="store",
+        dest="time_interval",
+        type=int,
+        help="Time interval between tps measures (in seconds)",
+        default=300,
+    )
 
-    t = tps_checker(args.address, args.port, args.txs_count)
-    t.run_check()
-    t.wait_check()
-    print("Stopped")
+    return parser.parse_args()
+
+
+def main():
+    """ Main function for start tps checker """
+
+    args = parse_arguments()
+
+    tps = None
+
+    def signal_handler(sig, frame):
+        print("\nCaught signal: {}. Frame: {}".format(sig, frame))
+        if tps is not None:
+            tps.interrupt_checker()
+        raise SystemExit("Exited from Ctrl-C handler")
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    tps = tps_checker(args.address, args.port, maxsize)
+    tps.run_check()
+
+    while not tps.is_interrupted:
+        tps.collected_tx_number = 0
+        time.sleep(args.time_interval)
+        tps_result = tps.collected_tx_number / args.time_interval
+        print(
+            datetime.now().strftime("%H:%M:%S"),
+            "current tps:",
+            tps_result,
+            "block num:",
+            tps.block_number,
+            flush=True,
+        )
 
 
 if __name__ == "__main__":
     try:
         main()
-    except SystemExit as e:
-        print(e)
-    except Exception as e:
+    except SystemExit as err:
+        print(err)
+    except Exception as err:
+        print(err)
         logging.error(traceback.format_exc())
