@@ -192,7 +192,7 @@ class Sender(Base):
             now_iso = seconds_to_iso(datetime.now(timezone.utc).timestamp())
             now_seconds = iso_to_seconds(now_iso)
             expiration_time = seconds_to_iso(
-                now_seconds + time_increment + self.call_id
+                now_seconds + time_increment
             )
             sign_transaction_list.append(
                 self.echo_ops.get_sign_transaction(
