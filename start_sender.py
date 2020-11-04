@@ -185,7 +185,8 @@ def host_config_parse(section):
     parser.read("scripts/resources/host_config.ini")
 
     if not parser.sections():
-        raise Exception("Config parse read exception, path to config incorrect")
+        raise Exception(
+            "Config parse read exception, path to config incorrect")
 
     return {k: int(v) for k, v in parser.items(section)}
 
@@ -220,7 +221,8 @@ def connect_to_peers(hosts_info, sender_number):
     for addr, count_nodes in hosts_info.items():
         for index in range(count_nodes):
             try:
-                print("Trying connect to", addr, ":", start_port + index, flush=True)
+                print("Trying connect to", addr, ":",
+                      start_port + index, flush=True)
 
                 sender = Sender(
                     addr,
@@ -231,7 +233,8 @@ def connect_to_peers(hosts_info, sender_number):
                 )
                 senders.append(sender)
 
-                info = "Address : {}  Port : {}".format(addr, start_port + index)
+                info = "Address : {}  Port : {}".format(
+                    addr, start_port + index)
                 info_nodes.append(info)
 
                 print("Done", flush=True)
@@ -280,7 +283,8 @@ def run_sender(args, senders, info_nodes, sender_ID=0):
                     offset = 0
                     break
 
-                total_transactions_sent += send(args, senders[index], info_nodes[index])
+                total_transactions_sent += send(args,
+                                                senders[index], info_nodes[index])
 
                 if total_transactions_sent % 10000 == 0:
                     logging.info(
@@ -290,7 +294,8 @@ def run_sender(args, senders, info_nodes, sender_ID=0):
                     )
             except Exception as err:
                 print(
-                    "Caught exception during transaction sending: {0}".format(err),
+                    "Caught exception during transaction sending: {0}".format(
+                        err),
                     flush=True,
                 )
                 logging.error(traceback.format_exc())
@@ -365,7 +370,8 @@ def main():
         setup_sender_logger(args.sender_number)
         run_sender(args, senders, info_nodes)
     else:
-        run_sender_in_multiprocessing(args, senders, info_nodes, args.multiprocess)
+        run_sender_in_multiprocessing(
+            args, senders, info_nodes, args.multiprocess)
 
 
 if __name__ == "__main__":

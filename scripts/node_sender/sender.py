@@ -33,8 +33,6 @@ class Sender(Base):
         super().__init__(node_url, port)
 
         self.call_id = call_id
-        self.step = step
-        self.index = call_id
 
         self.from_id = 6
         self.to_id = 0
@@ -48,9 +46,6 @@ class Sender(Base):
         self.echo_nathan_id = self.nathan["id"]
         self.INITIAL_BALANCE = 1000000000000000
 
-        self.total_num_send = 0
-        self.prev_head = self.dynamic_global_chain_data["head_block_number"]
-
         self.is_interrupted = False
         self.lock = threading.Lock()
         self.sws = None
@@ -60,8 +55,6 @@ class Sender(Base):
         self.step = step
         self.index = call_id
         self.sequence_num = sequence_num
-        self.set_from_id()
-        self.to_id = 0
         self.transfer_amount = 0
         self.fee_delta = 0
 
@@ -169,7 +162,8 @@ class Sender(Base):
                 amount=distributed_balance,
                 signer=self.nathan_priv_key,
             )
-            operations.append(self.collect_operations(op, self.database_api_identifier))
+            operations.append(self.collect_operations(
+                op, self.database_api_identifier))
 
         self.echo_ops.broadcast(
             self.echo_ops.get_sign_transaction(
@@ -186,35 +180,13 @@ class Sender(Base):
     def send_transaction_list(self, transaction_list, with_response=False):
         sign_transaction_list = []
 
-        time_increment = 900
-        divider = random.randint(100, 250)
         for tr in transaction_list:
-            now_iso = seconds_to_iso(datetime.now(timezone.utc).timestamp())
-            now_seconds = iso_to_seconds(now_iso)
-            expiration_time = seconds_to_iso(
-                now_seconds + time_increment
-            )
-            sign_transaction_list.append(
-                self.echo_ops.get_sign_transaction(
-                    echo=self.echo,
-                    list_operations=tr,
-                    expiration=expiration_time,
-                    chain_id=self.chain_id,
-                    dynamic_global_chain_data=self.dynamic_global_chain_data,
-                )
-            )
-            self.call_id += 1
-            self.total_num_send += 1
-            if self.total_num_send % divider == 0:
-                self.lock.acquire()
-                divider = random.randint(100, 3500)
-                if (
-                    self.prev_head
-                    != self.dynamic_global_chain_data["head_block_number"]
-                ):
-                    self.prev_head = self.dynamic_global_chain_data["head_block_number"]
-                    self.call_id = 0
-                self.lock.release()
+            sign_transaction_list.append(self.echo_ops.get_sign_transaction(
+                echo=self.echo,
+                list_operations=tr,
+                chain_id=self.chain_id,
+                dynamic_global_chain_data=self.dynamic_global_chain_data,
+            ))
 
         k = 0
         for tx in sign_transaction_list:
@@ -241,7 +213,8 @@ class Sender(Base):
         return to_account + (not (from_account ^ to_account))
 
     def get_next_value(self, value, increase_it):
-        value = value + (self.index + self.step * (self.sequence_num + 1)) * increase_it
+        value = value + (self.index + self.step *
+                         (self.sequence_num + 1)) * increase_it
         increase_next = ((value - 16383) & 0xFFFFFFFF) >> 31
         value = value * increase_next
         return value, not (increase_next)
@@ -290,10 +263,8 @@ class Sender(Base):
         fee_amount=None,
         with_response=False,
     ):
-        if x86_64_contract is True:
-            code = self.get_byte_code("fib", "code", ethereum_contract=False)
-        else:
-            code = self.get_byte_code("fib", "code", ethereum_contract=True)
+        code = self.get_byte_code(
+            "fib", "code", ethereum_contract=not x86_64_contract)
 
         transaction_list = []
         transfer_delta = 1
@@ -333,10 +304,8 @@ class Sender(Base):
         if contract_id is None:
             contract_id = "1.11.0"
 
-        if x86_64_contract is True:
-            code = self.get_byte_code("fib", "fib(1)", ethereum_contract=False)
-        else:
-            code = self.get_byte_code("fib", "fib(1)", ethereum_contract=True)
+        code = self.get_byte_code(
+            "fib", "fib(1)", ethereum_contract=not x86_64_contract)
 
         transaction_list = []
         transfer_delta = 1

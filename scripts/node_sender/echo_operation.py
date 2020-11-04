@@ -10,7 +10,6 @@ from math import ceil
 from echopy.transaction import TransactionType
 
 from .type_validation import TypeValidator
-from .operations_ids import OperationIds
 
 from ..utils.files_path import ECHO_OPERATIONS
 from ..utils.utils import seconds_to_iso
@@ -19,7 +18,6 @@ from ..utils.utils import iso_to_seconds
 
 class EchoOperation:
     def __init__(self):
-        self.operation_ids = OperationIds()
         self.type_validator = TypeValidator()
 
     @staticmethod
@@ -42,7 +40,7 @@ class EchoOperation:
     ):
         if extensions is None:
             extensions = []
-        operation_id = self.operation_ids.BALANCE_CLAIM
+        operation_id = echo.config.operation_ids.BALANCE_CLAIM
         balance_claim_operation_props = self.get_operation_json(
             "balance_claim_operation"
         )
@@ -82,7 +80,7 @@ class EchoOperation:
     ):
         if extensions is None:
             extensions = []
-        operation_id = self.operation_ids.TRANSFER
+        operation_id = echo.config.operation_ids.TRANSFER
         transfer_props = self.get_operation_json("transfer_operation")
         transfer_props["fee"].update({"amount": fee_amount, "asset_id": fee_asset_id})
         transfer_props.update(
