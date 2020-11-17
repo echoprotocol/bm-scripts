@@ -78,7 +78,7 @@ class tps_test:
 
     def run_call_emv_case(self):
         print("Started call evm case,", "transaction count -", self.tx_count)
-        self.s.create_contract(x86_64_contract=False, with_response=True)
+        self.s.create_contract(x86_64_contract=False, callback=True)
         self.tc = tps_checker(
             self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count
         )
@@ -101,7 +101,7 @@ class tps_test:
 
     def run_call_x86_case(self):
         print("Started call x86 case,", "transaction count -", self.tx_count)
-        self.s.create_contract(x86_64_contract=True, with_response=True)
+        self.s.create_contract(x86_64_contract=True, callback=True)
         self.tc = tps_checker(
             self.d.get_addresses()[0], self.d.rpc_ports[0], self.tx_count
         )

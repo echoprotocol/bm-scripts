@@ -262,7 +262,7 @@ genesis_temp = """
       [360, 15000]
     ],
     "echorand_config": {
-      "_time_generate": 1000,
+      "_time_generate": 600,
       "_time_net_1mb": 1200,
       "_time_net_256b": 400,
       "_creator_count": 3,

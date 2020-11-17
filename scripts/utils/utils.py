@@ -2,6 +2,7 @@ from datetime import timezone, datetime
 from math import ceil
 from calendar import timegm
 from time import strptime
+import asyncio
 
 class tx_ratio:
     transfer = 0.88
@@ -35,6 +36,5 @@ def seconds_to_iso(sec):
     return iso_result[: iso_result.rfind("+")]
 
 
-def iso_to_seconds(iso):
-    timeformat = "%Y-%m-%dT%H:%M:%S%Z"
-    return ceil(timegm(strptime((iso + "UTC"), timeformat)))
+def run_async(coro):
+        return asyncio.get_event_loop().run_until_complete(coro)

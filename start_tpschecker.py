@@ -44,7 +44,7 @@ def parse_arguments():
         dest="time_interval",
         type=int,
         help="Time interval between tps measures (in seconds)",
-        default=300,
+        default=60,
     )
 
     return parser.parse_args()
@@ -68,6 +68,7 @@ def main():
     tps = tps_checker(args.address, args.port, maxsize)
     tps.run_check()
 
+    collect_tps_results = []
     while not tps.is_interrupted:
         tps.collected_tx_number = 0
         time.sleep(args.time_interval)
@@ -80,6 +81,10 @@ def main():
             tps.block_number,
             flush=True,
         )
+
+        collect_tps_results.append(tps_result)
+        print("Average tps: {}".format(
+            sum(collect_tps_results) / len(collect_tps_results)))
 
 
 if __name__ == "__main__":

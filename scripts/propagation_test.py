@@ -45,7 +45,7 @@ class propagation_test:
             self.tx = self.s.create_transfer_transaction()
             self.pc1.run_check(self.tx)
             self.pc2.run_check(self.tx)
-            self.s.echo_ops.broadcast(self.tx, with_response=False)
+            self.s.echo_ops.broadcast(self.tx, callback=False)
             self.s.interrupt_sender()
             self.pc1.wait_check()
             self.pc2.wait_check()

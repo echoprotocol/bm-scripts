@@ -7,7 +7,7 @@ from .base import Base
 
 from ..utils.utils import generate_keys
 from ..utils.utils import seconds_to_iso
-from ..utils.utils import iso_to_seconds
+from ..utils.utils import run_async
 
 import logging
 import traceback
@@ -18,14 +18,6 @@ import threading
 import echopy
 import sys
 from websocket import create_connection
-
-login_req = '{"method": "call", "params": [1, "login", ["", ""]], "id": 0}'
-database_req = '{"method": "call", "params": [1, "database", []], "id": 0}'
-subscribe_callback_req = (
-    '{"method": "set_subscribe_callback", "params": [0, false], "id": 0}'
-)
-subscribe_dgpo_req = '{"method": "get_objects", "params": [["2.1.0"]], "id": 0}'
-tx_count_req = '{{"method": "get_block_tx_number", "params": [{block_id}], "id": 0}}'
 
 
 class Sender(Base):
@@ -42,15 +34,11 @@ class Sender(Base):
         )  # 6 - Count reserved Account IDs with special meaning
         self.generate_private_keys()
 
-        self.nathan = self.get_account("nathan", self.database_api_identifier)
+        self.nathan = self.get_account('nathan')
         self.echo_nathan_id = self.nathan["id"]
         self.INITIAL_BALANCE = 1000000000000000
 
         self.is_interrupted = False
-        self.lock = threading.Lock()
-        self.sws = None
-        self.t = threading.Thread(target=self.processing_gpo)
-        self.t.start()
 
         self.step = step
         self.index = call_id
@@ -61,36 +49,9 @@ class Sender(Base):
     def __del__(self):
         self.interrupt_sender()
 
-    def processing_gpo(self):
-        try:
-            self.sws = create_connection(self.node_url)
-            self.sws.send(login_req)
-            self.sws.recv()
-            self.sws.send(database_req)
-            self.sws.recv()
-            self.sws.send(subscribe_callback_req)
-            self.sws.recv()
-            self.sws.send(subscribe_dgpo_req)
-            self.sws.recv()
-            while not self.is_interrupted:
-                msg = self.sws.recv()
-                self.lock.acquire()
-                response = json.loads(msg)
-                self.dynamic_global_chain_data = response["params"][1][0][0]
-                self.lock.release()
-        except (json.decoder.JSONDecodeError, OSError) as e:
-            if not self.is_interrupted:
-                print("Caught exception in tps colletor thread:")
-                print("-------------------------------------------")
-                logging.error(traceback.format_exc())
-                print("-------------------------------------------")
-
-    def interrupt_sender(self):
+    async def interrupt_sender(self):
         self.is_interrupted = True
-        if self.sws is not None:
-            if self.lock.locked() is True:
-                self.lock.release()
-            self.sws.close()
+        await self.echo.disconnect()
 
     def generate_private_keys(self):
         self.private_keys = generate_keys(self.account_num)[0]
@@ -129,27 +90,25 @@ class Sender(Base):
             self.echo_nathan_id,
             nathan_public_key,
             self.INITIAL_BALANCE,
-            self.nathan_priv_key,
-        )
-        collected_operation = self.collect_operations(
-            operation, self.database_api_identifier
-        )
-        self.echo_ops.broadcast(
-            self.echo_ops.get_sign_transaction(
-                echo=self.echo,
-                list_operations=collected_operation,
-                chain_id=self.chain_id,
-                dynamic_global_chain_data=self.dynamic_global_chain_data,
-            ),
-            with_response=True,
+            self.nathan_priv_key
         )
 
+        run_async(
+            self.echo_ops.broadcast_operation(
+                echo=self.echo,
+                operation_ids=operation.operation_id,
+                props=operation.operation_props,
+                signer=operation.signer
+            )
+        )
         print("Import balance - Done\n")
 
     def balance_distribution(self):
         print("Started balance distribution")
 
-        operations = []
+        ids = []
+        props = []
+        signer = self.nathan_priv_key
 
         distributed_balance = int(self.INITIAL_BALANCE / (self.account_num))
 
@@ -157,53 +116,47 @@ class Sender(Base):
         for offset in range(self.account_num - 1):
             op = self.echo_ops.get_transfer_operation(
                 echo=self.echo,
-                from_account_id=self.echo_nathan_id,
-                to_account_id=to_id.format(offset + 6),
+                account_from=self.echo_nathan_id,
+                account_to=to_id.format(offset + 6),
                 amount=distributed_balance,
-                signer=self.nathan_priv_key,
+                signer=signer
             )
-            operations.append(self.collect_operations(
-                op, self.database_api_identifier))
+            ids.append(op.operation_id)
+            props.append(op.operation_props)
 
-        self.echo_ops.broadcast(
-            self.echo_ops.get_sign_transaction(
+        run_async(
+            self.echo_ops.broadcast_operation(
                 echo=self.echo,
-                list_operations=operations,
-                chain_id=self.chain_id,
-                dynamic_global_chain_data=self.dynamic_global_chain_data,
-            ),
-            with_response=True,
+                operation_ids=ids,
+                props=props,
+                signer=signer
+            )
         )
-
         print("Balance distribution - Done\n")
 
-    def send_transaction_list(self, transaction_list, with_response=False):
-        sign_transaction_list = []
-
-        for tr in transaction_list:
-            sign_transaction_list.append(self.echo_ops.get_sign_transaction(
-                echo=self.echo,
-                list_operations=tr,
-                chain_id=self.chain_id,
-                dynamic_global_chain_data=self.dynamic_global_chain_data,
-            ))
-
+    def send_operations(self, operations, callback=None):
         k = 0
-        for tx in sign_transaction_list:
+        for op in operations:
             try:
-                self.echo_ops.broadcast(tx, with_response=with_response)
+                self.echo_ops.broadcast_operation(
+                        echo=self.echo,
+                        operation_ids=op.operation_id,
+                        props=op.operation_props,
+                        signer=op.signer,
+                        callback=callback
+                ) #TODO: event_loop
                 k = k + 1
             except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
                 if "skip_transaction_dupe_check" in str(rpc_error):
-                    logging.info("Caught txs dupe")
+                    logging.warning("Caught txs dupe")
                 elif "is_known_transaction" in str(rpc_error):
-                    logging.info("The same transaction exists in chain")
+                    logging.warning("The same transaction exists in chain")
                 elif "pending_txs" in str(rpc_error):
-                    logging.info("The same transaction exists in pending txs")
+                    logging.warning(
+                        "The same transaction exists in pending txs")
                 else:
                     logging.error(str(rpc_error))
                 k = k - 1
-
         return k
 
     def get_next_to_account(self, from_account, to_account):
@@ -222,10 +175,9 @@ class Sender(Base):
     def transfer(self, transaction_count=1, amount=1, fee_amount=None):
         from_acc = "1.2.{}"
         to_acc = "1.2.{}"
-        transfer_delta = 1
 
         self.to_id = self.get_next_to_account(self.from_id, self.to_id)
-        transaction_list = []
+        operations = []
         for _ in range(transaction_count):
             from_ = from_acc.format(self.from_id + 6)
             to_ = to_acc.format(self.to_id + 6)
@@ -235,17 +187,17 @@ class Sender(Base):
 
             transfer_operation = self.echo_ops.get_transfer_operation(
                 echo=self.echo,
-                from_account_id=from_,
-                amount=self.transfer_amount + transfer_delta,
-                to_account_id=to_,
+                account_from=from_,
+                amount=self.transfer_amount + 1,
+                account_to=to_,
                 signer=self.private_keys[self.from_id],
             )
-            collected_operation = self.collect_operations(
-                transfer_operation,
-                self.database_api_identifier,
-                fee_amount=fee_amount + self.fee_delta,
+            self.echo_ops.add_fee_to_operation(
+                echo=self.echo,
+                operation=transfer_operation,
+                fee_amount=fee_amount + self.fee_delta
             )
-            transaction_list.append(collected_operation)
+            operations.append(transfer_operation)
             self.transfer_amount, increase_next_account = self.get_next_value(
                 self.transfer_amount, increase_transfer_value
             )
@@ -253,7 +205,7 @@ class Sender(Base):
                 self.from_id, self.to_id + 1 * increase_next_account
             )
 
-        return self.send_transaction_list(transaction_list)
+        return self.send_operations(operations)
 
     def create_contract(
         self,
@@ -261,13 +213,12 @@ class Sender(Base):
         value=0,
         transaction_count=1,
         fee_amount=None,
-        with_response=False,
+        callback=None,
     ):
         code = self.get_byte_code(
             "fib", "code", ethereum_contract=not x86_64_contract)
 
-        transaction_list = []
-        transfer_delta = 1
+        operations = []
 
         for _ in range(transaction_count):
             self.fee_delta, increase_transfer_value = self.get_next_value(
@@ -277,21 +228,20 @@ class Sender(Base):
                 echo=self.echo,
                 registrar="1.2.{}".format(self.from_id + 6),
                 bytecode=code,
-                value_amount=self.transfer_amount + transfer_delta,
-                value_asset_id=self.echo_asset,
+                value_amount=self.transfer_amount + 1,
                 signer=self.private_keys[self.from_id],
             )
-            collected_operation = self.collect_operations(
-                operation,
-                self.database_api_identifier,
-                fee_amount=fee_amount + self.fee_delta,
+            self.echo_ops.add_fee_to_operation(
+                echo=self.echo,
+                operation=operation,
+                fee_amount=fee_amount + self.fee_delta
             )
             self.transfer_amount, _ = self.get_next_value(
                 self.transfer_amount, increase_transfer_value
             )
-            transaction_list.append(collected_operation)
+            operations.append(operation)
 
-        return self.send_transaction_list(transaction_list, with_response=with_response)
+        return self.send_operations(operations, callback)
 
     def call_contract(
         self,
@@ -307,8 +257,7 @@ class Sender(Base):
         code = self.get_byte_code(
             "fib", "fib(1)", ethereum_contract=not x86_64_contract)
 
-        transaction_list = []
-        transfer_delta = 1
+        operations = []
 
         for _ in range(transaction_count):
             self.fee_delta, increase_transfer_value = self.get_next_value(
@@ -317,57 +266,47 @@ class Sender(Base):
             operation = self.echo_ops.get_contract_call_operation(
                 echo=self.echo,
                 registrar="1.2.{}".format(self.from_id + 6),
-                value_amount=self.transfer_amount + transfer_delta,
+                value_amount=self.transfer_amount + 1,
                 bytecode=code,
                 callee=contract_id,
                 signer=self.private_keys[self.from_id],
             )
-            collected_operation = self.collect_operations(
-                operation,
-                self.database_api_identifier,
-                fee_amount=fee_amount + self.fee_delta,
+            self.echo_ops.add_fee_to_operation(
+                echo=self.echo,
+                operation=operation,
+                fee_amount=fee_amount + self.fee_delta
             )
             self.transfer_amount, _ = self.get_next_value(
                 self.transfer_amount, increase_transfer_value
             )
-            transaction_list.append(collected_operation)
+            operations.append(operation)
 
-        return self.send_transaction_list(transaction_list)
+        return self.send_operations(operations)
 
     def create_transfer_transaction(self):
-        transfer_amount = 1
-        to_account_id = "1.2.6"
-
-        transaction_list = []
+        operations = []
         transfer_operation = self.echo_ops.get_transfer_operation(
             echo=self.echo,
-            from_account_id=self.echo_nathan_id,
-            amount=transfer_amount,
-            to_account_id=to_account_id,
+            account_from=self.echo_nathan_id,
+            amount=1,
+            account_to="1.2.6",
             signer=self.nathan_priv_key,
         )
-        collected_operation = self.collect_operations(
-            transfer_operation, self.database_api_identifier
+        self.echo_ops.add_fee_to_operation(
+            echo=self.echo,
+            operation=transfer_operation
         )
-        transaction_list.append(collected_operation)
+        operations.append(transfer_operation)
 
-        sign_transaction_list = []
-        time_increment = 300
-        for tr in transaction_list:
-            now_iso = seconds_to_iso(datetime.now(timezone.utc).timestamp())
-            now_seconds = iso_to_seconds(now_iso)
-            expiration_time = seconds_to_iso(
-                now_seconds + time_increment + self.call_id
-            )
-            sign_transaction_list.append(
-                self.echo_ops.get_sign_transaction(
+        sign_transactions = []
+        for op in operations:
+            sign_transactions.append(
+                self.echo_ops.sign_transaction(
                     echo=self.echo,
-                    list_operations=tr,
-                    expiration=expiration_time,
-                    chain_id=self.chain_id,
-                    dynamic_global_chain_data=self.dynamic_global_chain_data,
+                    operation_ids=op.operation_id,
+                    props=op.operation_props,
+                    signer=op.signer
                 )
             )
             self.call_id += 1
-
-        return sign_transaction_list[0]
+        return sign_transactions[0]
