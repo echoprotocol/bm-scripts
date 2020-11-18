@@ -1,13 +1,6 @@
-import time
-from datetime import timezone, datetime
-from math import ceil
-from calendar import timegm
-
 from .base import Base
 
-from ..utils.utils import generate_keys
-from ..utils.utils import seconds_to_iso
-from ..utils.utils import run_async
+from ..utils.utils import (generate_keys, get_byte_code, INITIAL_BALANCE)
 
 import logging
 import traceback
@@ -19,39 +12,42 @@ import echopy
 import sys
 from websocket import create_connection
 
+async def create_sender(node_url, port, index=0, step=1, sequence_num=0):
+    sender = Sender(node_url, port)
+    await sender._init()
+    return sender
 
 class Sender(Base):
-    def __init__(self, node_url, port, call_id=0, step=1, sequence_num=0):
+    def __init__(self, node_url, port, index=0, step=1, sequence_num=0):
         super().__init__(node_url, port)
-
-        self.call_id = call_id
 
         self.from_id = 6
         self.to_id = 0
 
-        self.account_num = (
-            self.get_account_count() - 6
-        )  # 6 - Count reserved Account IDs with special meaning
-        self.generate_private_keys()
-
-        self.nathan = self.get_account('nathan')
-        self.echo_nathan_id = self.nathan["id"]
-        self.INITIAL_BALANCE = 1000000000000000
-
-        self.is_interrupted = False
-
         self.step = step
-        self.index = call_id
+        self.index = index
         self.sequence_num = sequence_num
         self.transfer_amount = 0
         self.fee_delta = 0
+        self.is_interrupted = False
+
+    async def _init(self):
+        await super()._init()
+        self.account_num = (
+            await self.get_account_count() - 6
+        )  # 6 - Count reserved Account IDs with special meaning
+        self.generate_private_keys()
+        self.nathan = await self.get_account('nathan')
 
     def __del__(self):
         self.interrupt_sender()
 
-    async def interrupt_sender(self):
+    async def _del(self):
+        self.interrupt_sender()
+        await super(Sender, self)._del()
+
+    def interrupt_sender(self):
         self.is_interrupted = True
-        await self.echo.disconnect()
 
     def generate_private_keys(self):
         self.private_keys = generate_keys(self.account_num)[0]
@@ -87,19 +83,17 @@ class Sender(Base):
         nathan_public_key = self.get_public_key(self.nathan)
         operation = self.echo_ops.get_balance_claim_operation(
             self.echo,
-            self.echo_nathan_id,
+            self.nathan["id"],
             nathan_public_key,
-            self.INITIAL_BALANCE,
+            INITIAL_BALANCE,
             self.nathan_priv_key
         )
 
-        run_async(
-            self.echo_ops.broadcast_operation(
-                echo=self.echo,
-                operation_ids=operation.operation_id,
-                props=operation.operation_props,
-                signer=operation.signer
-            )
+        self.echo_ops.broadcast_operation(
+            echo=self.echo,
+            operation_ids=operation.operation_id,
+            props=operation.operation_props,
+            signer=operation.signer
         )
         print("Import balance - Done\n")
 
@@ -110,13 +104,13 @@ class Sender(Base):
         props = []
         signer = self.nathan_priv_key
 
-        distributed_balance = int(self.INITIAL_BALANCE / (self.account_num))
+        distributed_balance = int(INITIAL_BALANCE / (self.account_num))
 
         to_id = "1.2.{}"
         for offset in range(self.account_num - 1):
             op = self.echo_ops.get_transfer_operation(
                 echo=self.echo,
-                account_from=self.echo_nathan_id,
+                account_from=self.nathan["id"],
                 account_to=to_id.format(offset + 6),
                 amount=distributed_balance,
                 signer=signer
@@ -124,27 +118,25 @@ class Sender(Base):
             ids.append(op.operation_id)
             props.append(op.operation_props)
 
-        run_async(
-            self.echo_ops.broadcast_operation(
-                echo=self.echo,
-                operation_ids=ids,
-                props=props,
-                signer=signer
-            )
+        self.echo_ops.broadcast_operation(
+            echo=self.echo,
+            operation_ids=ids,
+            props=props,
+            signer=signer
         )
         print("Balance distribution - Done\n")
 
-    def send_operations(self, operations, callback=None):
+    async def send_operations(self, operations, callback=None):
         k = 0
         for op in operations:
             try:
-                self.echo_ops.broadcast_operation(
-                        echo=self.echo,
-                        operation_ids=op.operation_id,
-                        props=op.operation_props,
-                        signer=op.signer,
-                        callback=callback
-                ) #TODO: event_loop
+                await self.echo_ops.broadcast_operation(
+                    echo=self.echo,
+                    operation_ids=op.operation_id,
+                    props=op.operation_props,
+                    signer=op.signer,
+                    callback=callback
+                )
                 k = k + 1
             except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
                 if "skip_transaction_dupe_check" in str(rpc_error):
@@ -207,7 +199,7 @@ class Sender(Base):
 
         return self.send_operations(operations)
 
-    def create_contract(
+    async def create_contract(
         self,
         x86_64_contract=True,
         value=0,
@@ -215,7 +207,7 @@ class Sender(Base):
         fee_amount=None,
         callback=None,
     ):
-        code = self.get_byte_code(
+        code = get_byte_code(
             "fib", "code", ethereum_contract=not x86_64_contract)
 
         operations = []
@@ -241,7 +233,7 @@ class Sender(Base):
             )
             operations.append(operation)
 
-        return self.send_operations(operations, callback)
+        return await self.send_operations(operations, callback)
 
     def call_contract(
         self,
@@ -254,7 +246,7 @@ class Sender(Base):
         if contract_id is None:
             contract_id = "1.11.0"
 
-        code = self.get_byte_code(
+        code = get_byte_code(
             "fib", "fib(1)", ethereum_contract=not x86_64_contract)
 
         operations = []
@@ -287,7 +279,7 @@ class Sender(Base):
         operations = []
         transfer_operation = self.echo_ops.get_transfer_operation(
             echo=self.echo,
-            account_from=self.echo_nathan_id,
+            account_from=self.nathan["id"],
             amount=1,
             account_to="1.2.6",
             signer=self.nathan_priv_key,
@@ -308,5 +300,4 @@ class Sender(Base):
                     signer=op.signer
                 )
             )
-            self.call_id += 1
         return sign_transactions[0]

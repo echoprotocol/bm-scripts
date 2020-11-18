@@ -10,8 +10,6 @@ from collections import OrderedDict
 
 from echopy.transaction import TransactionType
 
-from ..utils.utils import seconds_to_iso
-
 
 class Operation:
     def __init__(self, operation_id, props, signer):

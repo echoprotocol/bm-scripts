@@ -14,10 +14,12 @@ import sys
 import json
 import os
 from multiprocessing import Process
+import asyncio
+import concurrent.futures
 
 import psutil
-from scripts.node_sender.sender import Sender
-from scripts.node_sender.base import Base
+from scripts.node_sender.sender import create_sender
+from scripts.node_sender.base import create_base
 
 
 def kill_sender():
@@ -44,10 +46,10 @@ def transfer_operation(sender, txs_count):
     return sender.transfer(transaction_count=txs_count, fee_amount=20)
 
 
-def create_evm_contract_operation(sender, txs_count):
+async def create_evm_contract_operation(sender, txs_count):
     """ Send transaction with txs_count create evm contract operations """
 
-    return sender.create_contract(
+    return await sender.create_contract(
         transaction_count=txs_count, x86_64_contract=False, fee_amount=395
     )
 
@@ -82,7 +84,7 @@ def call_x86_contract_operation(sender, txs_count):
     )
 
 
-def send_tx(sender, tx_type, txs_count):
+async def send_tx(sender, tx_type, txs_count):
     """ Send transaction by operation type """
 
     # map the inputs to the operation type
@@ -94,7 +96,7 @@ def send_tx(sender, tx_type, txs_count):
         5: call_x86_contract_operation,
     }
 
-    return operation_types[tx_type](sender, txs_count)
+    return await operation_types[tx_type](sender, txs_count)
 
 
 def parse_arguments():
@@ -191,15 +193,15 @@ def host_config_parse(section):
     return {k: int(v) for k, v in parser.items(section)}
 
 
-def validate_count_nodes(hosts_info):
+async def validate_count_nodes(hosts_info):
     """ Validation arguments hosts info with number of accounts """
 
     address = next(iter(hosts_info))
 
     try:
-        base = Base(address, 8090)
+        base = await create_base(address, 8090)
 
-        number_of_accounts = base.get_account_count()
+        number_of_accounts = await base.get_account_count()
         count_nodes = sum(int(hosts_info[host]) for host in hosts_info)
         if count_nodes > number_of_accounts:
             raise Exception(
@@ -210,7 +212,7 @@ def validate_count_nodes(hosts_info):
         print(err, flush=True)
 
 
-def connect_to_peers(hosts_info, sender_number):
+async def connect_to_peers(hosts_info, sender_number):
     """ Setting up a connection to nodes """
 
     senders = []
@@ -224,12 +226,12 @@ def connect_to_peers(hosts_info, sender_number):
                 print("Trying connect to", addr, ":",
                       start_port + index, flush=True)
 
-                sender = Sender(
+                sender = await create_sender(
                     addr,
                     start_port + index,
-                    call_id=sender_id,
+                    index=sender_id,
                     step=count_nodes,
-                    sequence_num=sender_number,
+                    sequence_num=sender_number
                 )
                 senders.append(sender)
 
@@ -328,7 +330,7 @@ def run_sender_in_multiprocessing(args, senders, info_nodes, number_of_subproces
         sender_process.start()
 
 
-def main():
+async def main():
     """ Main function for start sender """
 
     args = parse_arguments()
@@ -351,9 +353,9 @@ def main():
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    validate_count_nodes(hosts_info)
+    await validate_count_nodes(hosts_info)
 
-    senders, info_nodes = connect_to_peers(hosts_info, args.sender_number)
+    senders, info_nodes = await connect_to_peers(hosts_info, args.sender_number)
 
     if not senders:
         print("\nList senders is empty", flush=True)
@@ -364,19 +366,20 @@ def main():
             sender.private_network()
 
     if args.tx_type == 4 or args.tx_type == 5:
-        send_tx(senders[0], args.tx_type - 2, 1)
+        await send_tx(senders[0], args.tx_type - 2, 1)
+        print("Send done")
 
-    if args.multiprocess == 0:
-        setup_sender_logger(args.sender_number)
-        run_sender(args, senders, info_nodes)
-    else:
-        run_sender_in_multiprocessing(
-            args, senders, info_nodes, args.multiprocess)
+    # if args.multiprocess == 0:
+    #     setup_sender_logger(args.sender_number)
+    #     run_sender(args, senders, info_nodes)
+    # else:
+    #     run_sender_in_multiprocessing(
+    #         args, senders, info_nodes, args.multiprocess)
 
 
 if __name__ == "__main__":
     try:
-        main()
+        asyncio.run(main())
     except SystemExit as err:
         print(err)
     except Exception as err:
