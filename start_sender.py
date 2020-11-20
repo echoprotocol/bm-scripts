@@ -13,7 +13,6 @@ import signal
 import sys
 import json
 import os
-from multiprocessing import Process
 import asyncio
 import concurrent.futures
 
@@ -32,6 +31,21 @@ def kill_sender():
             os.kill(proc.pid, signal.SIGTERM)
 
 
+async def shutdown(signal, loop):
+    """Cleanup tasks tied to the service's shutdown."""
+
+    logging.info(f"Received exit signal {signal.name}...")
+    tasks = [t for t in asyncio.all_tasks() if t is not
+             asyncio.current_task()]
+
+    [task.cancel() for task in tasks]
+
+    logging.info(f"Cancelling {len(tasks)} outstanding tasks")
+    await asyncio.gather(*tasks)
+    logging.info(f"Flushing metrics")
+    loop.stop()
+
+
 def setup_sender_logger(start_index):
     """ To setup for sender logger. Start index in this case file log ID """
 
@@ -40,10 +54,10 @@ def setup_sender_logger(start_index):
     )
 
 
-def transfer_operation(sender, txs_count):
+async def transfer_operation(sender, txs_count):
     """ Send transaction with txs_count transfer operations """
 
-    return sender.transfer(transaction_count=txs_count, fee_amount=20)
+    return await sender.transfer(transaction_count=txs_count, fee_amount=20)
 
 
 async def create_evm_contract_operation(sender, txs_count):
@@ -54,18 +68,18 @@ async def create_evm_contract_operation(sender, txs_count):
     )
 
 
-def create_x86_contract_operation(sender, txs_count):
+async def create_x86_contract_operation(sender, txs_count):
     """ Send transaction with txs_count create x86 contract operations """
 
-    return sender.create_contract(
+    return await sender.create_contract(
         transaction_count=txs_count, x86_64_contract=True, fee_amount=201
     )
 
 
-def call_evm_contract_operation(sender, txs_count):
+async def call_evm_contract_operation(sender, txs_count):
     """ Send transaction with txs_count call evm contract operations """
 
-    return sender.call_contract(
+    return await sender.call_contract(
         contract_id="1.11.0",
         transaction_count=txs_count,
         x86_64_contract=False,
@@ -73,10 +87,10 @@ def call_evm_contract_operation(sender, txs_count):
     )
 
 
-def call_x86_contract_operation(sender, txs_count):
+async def call_x86_contract_operation(sender, txs_count):
     """ Send transaction with txs_count call x86 contract operations """
 
-    return sender.call_contract(
+    return await sender.call_contract(
         contract_id="1.11.0",
         transaction_count=txs_count,
         x86_64_contract=True,
@@ -160,15 +174,15 @@ def parse_arguments():
         action="store_true",
         help="Enable adaptive sleep for constant tps",
     )
-    parser.add_argument(
-        "-mp",
-        "--multiprocess",
-        dest="multiprocess",
-        action="store",
-        type=int,
-        help="Specify the number of running sender transactions",
-        default=0,
-    )
+    # parser.add_argument(
+    #     "-mp",
+    #     "--multiprocess",
+    #     dest="multiprocess",
+    #     action="store",
+    #     type=int,
+    #     help="Specify the number of running sender transactions",
+    #     default=0,
+    # )
     parser.add_argument(
         "-pn",
         "--private_network",
@@ -243,13 +257,12 @@ async def connect_to_peers(hosts_info, sender_number):
 
                 sender_id = sender_id + 1
             except ConnectionRefusedError as err:
-                logging.error(traceback.format_exc())
-                print(err, flush=True)
+                logging.error(err, flush=True)
 
     return senders, info_nodes
 
 
-def send(args, sender, info):
+async def send(args, sender, info):
     """ Send transactions with arguments """
 
     sent = 0
@@ -258,24 +271,22 @@ def send(args, sender, info):
         logging.info("Trying sent transactions to:%s", info)
         if args.tps:
             start = time.time()
-            sent = send_tx(sender, args.tx_type, args.txs_count)
+            sent = await send_tx(sender, args.tx_type, args.txs_count)
             logging.info("%d transactions sent", sent)
             diff = time.time() - start
             if diff < 1.0:
                 time.sleep(round((1.0 - diff), 3))
         else:
-            sent = send_tx(sender, args.tx_type, args.txs_count)
+            sent = await send_tx(sender, args.tx_type, args.txs_count)
             logging.info("%d transactions sent", sent)
             time.sleep(args.delay)
     return sent
 
 
-def run_sender(args, senders, info_nodes, sender_ID=0):
+async def run_sender(args, senders, info_nodes, sender_ID=0):
     """ Run sender to send transactions """
 
     print("Run sender{}".format(sender_ID))
-
-    total_transactions_sent = 0
 
     offset = sender_ID  # Starting the sender with an offset
     while senders:
@@ -284,29 +295,23 @@ def run_sender(args, senders, info_nodes, sender_ID=0):
                 if index >= len(senders):
                     offset = 0
                     break
+                await send(args, senders[index], info_nodes[index])
+            except asyncio.CancelledError:
+                print("Received cancelled error")
+                logging.error(traceback.format_exc())
 
-                total_transactions_sent += send(args,
-                                                senders[index], info_nodes[index])
-
-                if total_transactions_sent % 10000 == 0:
-                    logging.info(
-                        "Sender{} status. Total transactions sent {}".format(
-                            sender_ID, total_transactions_sent
-                        )
-                    )
+                del senders[index]
+                del info_nodes[index]
             except Exception as err:
                 print(
-                    "Caught exception during transaction sending: {0}".format(
-                        err),
-                    flush=True,
-                )
+                    "Caught exception during transaction sending: {0}".format(err))
                 logging.error(traceback.format_exc())
 
                 del senders[index]
                 del info_nodes[index]
 
 
-def run_sender_in_multiprocessing(args, senders, info_nodes, number_of_subprocesses):
+async def run_sender_in_multiprocessing(args, senders, info_nodes, number_of_subprocesses):
     """ Run some senders to send transactions with multiprocessing """
 
     print("Start in multiprocessing")
@@ -315,7 +320,6 @@ def run_sender_in_multiprocessing(args, senders, info_nodes, number_of_subproces
         args.sender_number, args.sender_number + number_of_subprocesses
     )  # fix duplicate transactions for senders in multiprocessing mode
 
-    processes = []
     for index in range(number_of_subprocesses):
         setup_sender_logger(sender_numbers[index])
 
@@ -323,11 +327,13 @@ def run_sender_in_multiprocessing(args, senders, info_nodes, number_of_subproces
             sender.sequence_num = sender_numbers[index]
             sender.set_from_id()
 
-        sender_process = Process(
-            target=run_sender, args=(args, senders, info_nodes, index)
-        )
-        processes.append(sender_process)
-        sender_process.start()
+        # sender_process = Process(
+        #     target=run_sender, args=(args, senders, info_nodes, index)
+        # )
+        # sender_process.start()
+        # await asyncio.create_subprocess_exec(
+        #     *["./start_sender"] + [args, senders, info_nodes, index],
+        #     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
 
 
 async def main():
@@ -342,20 +348,20 @@ async def main():
     else:
         hosts_info = json.loads(args.hosts_info)
 
-    if not args.start_new:
+    if args.start_new:
         kill_sender()
-
-    def signal_handler(sig, frame):
-        print("\nCaught signal: ", sig, ":", frame)
-        for sender in senders:
-            sender.interrupt_sender()
-        raise SystemExit("Exited from Ctrl-C handler")
-
-    signal.signal(signal.SIGINT, signal_handler)
 
     await validate_count_nodes(hosts_info)
 
     senders, info_nodes = await connect_to_peers(hosts_info, args.sender_number)
+
+    loop = asyncio.get_event_loop()
+
+    # May want to catch other signals too
+    signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+    for s in signals:
+        loop.add_signal_handler(
+            s, lambda s=s: asyncio.create_task(shutdown(s, loop)))
 
     if not senders:
         print("\nList senders is empty", flush=True)
@@ -367,14 +373,11 @@ async def main():
 
     if args.tx_type == 4 or args.tx_type == 5:
         await send_tx(senders[0], args.tx_type - 2, 1)
-        print("Send done")
 
-    # if args.multiprocess == 0:
-    #     setup_sender_logger(args.sender_number)
-    #     run_sender(args, senders, info_nodes)
-    # else:
-    #     run_sender_in_multiprocessing(
-    #         args, senders, info_nodes, args.multiprocess)
+    setup_sender_logger(args.sender_number)
+    await run_sender(args, senders, info_nodes)
+    # TODO: add support multiprocessing
+    # await run_sender_in_multiprocessing(args, senders, info_nodes, args.multiprocess)
 
 
 if __name__ == "__main__":

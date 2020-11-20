@@ -11,11 +11,14 @@ import threading
 import echopy
 import sys
 from websocket import create_connection
+import asyncio
+
 
 async def create_sender(node_url, port, index=0, step=1, sequence_num=0):
     sender = Sender(node_url, port)
     await sender._init()
     return sender
+
 
 class Sender(Base):
     def __init__(self, node_url, port, index=0, step=1, sequence_num=0):
@@ -78,7 +81,7 @@ class Sender(Base):
         if self.from_id >= self.account_num:
             self.from_id = int(self.from_id % self.account_num)
 
-    def import_balance_to_nathan(self):
+    async def import_balance_to_nathan(self):
         print("Started import balance")
         nathan_public_key = self.get_public_key(self.nathan)
         operation = self.echo_ops.get_balance_claim_operation(
@@ -89,7 +92,7 @@ class Sender(Base):
             self.nathan_priv_key
         )
 
-        self.echo_ops.broadcast_operation(
+        await self.echo_ops.broadcast_operation(
             echo=self.echo,
             operation_ids=operation.operation_id,
             props=operation.operation_props,
@@ -97,9 +100,8 @@ class Sender(Base):
         )
         print("Import balance - Done\n")
 
-    def balance_distribution(self):
+    async def balance_distribution(self):
         print("Started balance distribution")
-
         ids = []
         props = []
         signer = self.nathan_priv_key
@@ -118,7 +120,7 @@ class Sender(Base):
             ids.append(op.operation_id)
             props.append(op.operation_props)
 
-        self.echo_ops.broadcast_operation(
+        await self.echo_ops.broadcast_operation(
             echo=self.echo,
             operation_ids=ids,
             props=props,
@@ -127,29 +129,32 @@ class Sender(Base):
         print("Balance distribution - Done\n")
 
     async def send_operations(self, operations, callback=None):
-        k = 0
-        for op in operations:
-            try:
-                await self.echo_ops.broadcast_operation(
-                    echo=self.echo,
-                    operation_ids=op.operation_id,
-                    props=op.operation_props,
-                    signer=op.signer,
-                    callback=callback
-                )
-                k = k + 1
-            except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
-                if "skip_transaction_dupe_check" in str(rpc_error):
-                    logging.warning("Caught txs dupe")
-                elif "is_known_transaction" in str(rpc_error):
-                    logging.warning("The same transaction exists in chain")
-                elif "pending_txs" in str(rpc_error):
-                    logging.warning(
-                        "The same transaction exists in pending txs")
-                else:
-                    logging.error(str(rpc_error))
-                k = k - 1
-        return k
+        count_rpc_errors = 0
+        try:
+            tasks = []
+            for op in operations:
+                tasks.append(asyncio.ensure_future(
+                    self.echo_ops.broadcast_operation(
+                        echo=self.echo,
+                        operation_ids=op.operation_id,
+                        props=op.operation_props,
+                        signer=op.signer,
+                        callback=callback
+                    )))
+                count_rpc_errors = count_rpc_errors + 1
+            await asyncio.gather(*tasks)
+        except echopy.echoapi.ws.exceptions.RPCError as rpc_error:
+            if "skip_transaction_dupe_check" in str(rpc_error):
+                logging.warning("Caught txs dupe")
+            elif "is_known_transaction" in str(rpc_error):
+                logging.warning("The same transaction exists in chain")
+            elif "pending_txs" in str(rpc_error):
+                logging.warning(
+                    "The same transaction exists in pending txs")
+            else:
+                logging.error(str(rpc_error))
+            count_rpc_errors = count_rpc_errors - 1
+        return count_rpc_errors
 
     def get_next_to_account(self, from_account, to_account):
         to_account = to_account * (
@@ -164,7 +169,7 @@ class Sender(Base):
         value = value * increase_next
         return value, not (increase_next)
 
-    def transfer(self, transaction_count=1, amount=1, fee_amount=None):
+    async def transfer(self, transaction_count=1, amount=1, fee_amount=None):
         from_acc = "1.2.{}"
         to_acc = "1.2.{}"
 
@@ -197,7 +202,7 @@ class Sender(Base):
                 self.from_id, self.to_id + 1 * increase_next_account
             )
 
-        return self.send_operations(operations)
+        return await self.send_operations(operations)
 
     async def create_contract(
         self,
@@ -235,7 +240,7 @@ class Sender(Base):
 
         return await self.send_operations(operations, callback)
 
-    def call_contract(
+    async def call_contract(
         self,
         contract_id=None,
         x86_64_contract=True,
@@ -273,9 +278,10 @@ class Sender(Base):
             )
             operations.append(operation)
 
-        return self.send_operations(operations)
+        return await self.send_operations(operations)
 
     def create_transfer_transaction(self):
+        # TODO: add asyncio support
         operations = []
         transfer_operation = self.echo_ops.get_transfer_operation(
             echo=self.echo,

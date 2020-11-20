@@ -166,4 +166,4 @@ class EchoOperation:
 
     async def broadcast_operation(self, echo, operation_ids, props, signer, callback=None):
         tx = await self.sign_transaction(echo, operation_ids, props, signer)
-        return await tx.broadcast(callback=callback)
+        return await echo.api.network.broadcast_transaction(tx.transaction_object.json())
