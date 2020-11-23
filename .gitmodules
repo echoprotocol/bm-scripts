@@ -1,0 +1,3 @@
+[submodule "echopy-lib"]
+	path = echopy-lib
+	url = git@gitlab.pixelplex.by:645.echo/echopy-lib.git

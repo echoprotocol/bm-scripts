@@ -268,7 +268,7 @@ async def send(args, sender, info):
     sent = 0
 
     if not sender.is_interrupted:
-        logging.info("Trying sent transactions to:%s", info)
+        logging.info("Trying sent transactions to: %s", info)
         if args.tps:
             start = time.time()
             sent = await send_tx(sender, args.tx_type, args.txs_count)
@@ -292,7 +292,7 @@ async def run_sender(args, senders, info_nodes, sender_ID=0):
     while senders:
         for index, _ in enumerate(senders, offset):
             try:
-                if index >= len(senders):
+                if index == len(senders) - 1:
                     offset = 0
                     break
                 await send(args, senders[index], info_nodes[index])

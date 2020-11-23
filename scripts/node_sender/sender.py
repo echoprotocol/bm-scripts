@@ -39,6 +39,7 @@ class Sender(Base):
         self.account_num = (
             await self.get_account_count() - 6
         )  # 6 - Count reserved Account IDs with special meaning
+        self.set_from_id()
         self.generate_private_keys()
         self.nathan = await self.get_account('nathan')
 
