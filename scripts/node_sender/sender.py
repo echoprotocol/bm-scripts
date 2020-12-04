@@ -10,7 +10,6 @@ import os
 import threading
 import echopy
 import sys
-from websocket import create_connection
 import asyncio
 
 
@@ -97,7 +96,7 @@ class Sender(Base):
             echo=self.echo,
             operation_ids=operation.operation_id,
             props=operation.operation_props,
-            signer=operation.signer
+            signer=operation.signer,
         )
         print("Import balance - Done\n")
 
@@ -139,8 +138,7 @@ class Sender(Base):
                         echo=self.echo,
                         operation_ids=op.operation_id,
                         props=op.operation_props,
-                        signer=op.signer,
-                        callback=callback
+                        signer=op.signer
                     )))
                 count_rpc_errors = count_rpc_errors + 1
             await asyncio.gather(*tasks)
