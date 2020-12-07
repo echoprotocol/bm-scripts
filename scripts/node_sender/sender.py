@@ -55,6 +55,7 @@ class Sender(Base):
         self.step = step
         self.index = call_id
         self.sequence_num = sequence_num
+        self.set_from_id()
         self.transfer_amount = 0
         self.fee_delta = 0
 
