@@ -179,7 +179,8 @@ def main():
         clear_volume=args.clear_volume,
         stop_containers=args.stop_containers
     )
-    d.wait_nodes()
+    if args.stop_containers is False:
+        d.wait_nodes()
 
     if args.url != "":
         alert_cmd = ""
