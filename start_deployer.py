@@ -147,7 +147,7 @@ def set_options(parser):
         "-uc", "--with_uc", action="store_true", help="Start utilization checker"
     )
     parser.add_argument(
-        "-stcon", "--stop_containers", action="store_true", help"Stop containers nodes"
+        "-stcon", "--stop_containers", action="store_true", help="Stop containers nodes"
     )
 
 
