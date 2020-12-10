@@ -146,6 +146,9 @@ def set_options(parser):
     parser.add_argument(
         "-uc", "--with_uc", action="store_true", help="Start utilization checker"
     )
+    parser.add_argument(
+        "-stcon", "--stop_containers", action="store_true", help"Stop containers nodes"
+    )
 
 
 def main():
@@ -174,6 +177,7 @@ def main():
         committee_count=args.committee_count,
         volume_dir=args.volume_dir,
         clear_volume=args.clear_volume,
+        stop_containers=args.stop_containers
     )
     d.wait_nodes()
 

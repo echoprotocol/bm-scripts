@@ -56,6 +56,7 @@ class deployer:
         committee_count=20,
         volume_dir="",
         clear_volume=True,
+        stop_containers=True
     ):
         self.delayed_nodes = []
         self.node_names = []
@@ -93,7 +94,7 @@ class deployer:
         self.create_volume_dir(volume_dir, clear_volume)
         self.copy_log_configs(clear_volume)
         if remote == True:
-            self.remote_deploying()
+            self.remote_deploying(stop_containers)
         else:
             self.local_deploying()
 
@@ -404,7 +405,7 @@ class deployer:
         n += self.node_count
         return n
 
-    def remote_deploying(self):
+    def remote_deploying(self, stop):
         if not self.host_addresses:
             if self.start_node != 0:
                 raise RuntimeError(
@@ -414,6 +415,8 @@ class deployer:
         self.set_node_names()
         self.set_ports()
         self.stop_containers()  # stop before start if not stopped in previous run
+        if stop is True:
+            return
         self.start_containers()
         self.set_node_addresses()
         self.form_all_to_all_remote_connection()
