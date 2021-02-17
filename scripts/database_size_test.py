@@ -31,8 +31,8 @@ class database_size_test:
             raise e
 
     def run_test(self):
-        self.s.create_contract(x86_64_contract=True, with_response=True)
-        self.s.create_contract(x86_64_contract=False, with_response=True)
+        self.s.create_contract(x86_64_contract=True, callback=True)
+        self.s.create_contract(x86_64_contract=False, callback=True)
         self.uc = utilization_checker(
             [self.d.get_addresses()[1]], [self.d.ports[1]], ["echonode1"]
         )

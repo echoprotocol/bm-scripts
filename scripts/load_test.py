@@ -111,8 +111,8 @@ class load_test:
         self.senders_list[0].import_balance_to_nathan()
         self.senders_list[0].balance_distribution()
 
-        self.senders_list[0].create_contract(x86_64_contract=True, with_response=True)
-        self.senders_list[0].create_contract(x86_64_contract=False, with_response=True)
+        self.senders_list[0].create_contract(x86_64_contract=True, callback=True)
+        self.senders_list[0].create_contract(x86_64_contract=False, callback=True)
 
         self.uc = utilization_checker(
             [self.d.get_addresses()[1]], [self.d.ports[1]], ["echonode1"]

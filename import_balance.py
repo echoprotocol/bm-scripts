@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 
 import argparse
-from scripts.node_sender.sender import Sender
+import asyncio
+from scripts.node_sender.sender import create_sender
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="Help for bm-scripts binary")
     parser.add_argument(
         "-a",
@@ -32,14 +33,14 @@ def main():
     )
     args = parser.parse_args()
 
-    s = Sender(args.address, args.port)
+    s = await create_sender(args.address, args.port)
 
     if args.private_network is True:
         s.private_network()
 
-    s.import_balance_to_nathan()
-    s.interrupt_sender()
+    await s.import_balance_to_nathan()
+    del s
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
